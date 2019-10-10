@@ -64,6 +64,8 @@ Links
 * `Documentation (Read the Docs) <https://aurora-data-api.readthedocs.io/en/latest/>`_
 * `Package distribution (PyPI) <https://pypi.python.org/pypi/aurora-data-api>`_
 * `Change log <https://github.com/chanzuckerberg/aurora-data-api/blob/master/Changes.rst>`_
+* `sqlalchemy-aurora-data-api <https://github.com/chanzuckerberg/sqlalchemy-aurora-data-api>`_, a SQLAlchemy dialect
+  that uses aurora-data-api
 
 Bugs
 ~~~~
