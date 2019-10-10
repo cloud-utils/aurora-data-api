@@ -175,7 +175,7 @@ class AuroraDataAPICursor:
         self.res["records"] = []
 
     def fetchone(self):
-        return self.res["records"].pop(0)
+        return self.res["records"].pop(0) if len(self.res["records"]) > 0 else None
 
     def fetchmany(self, size=None):
         if size is None:
