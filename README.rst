@@ -1,4 +1,5 @@
-# aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
+aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
+===================================================================================
 
 Installation
 ------------
@@ -9,17 +10,20 @@ Installation
 Prerequisites
 -------------
 * Set up an
-  [AWS Aurora Serverless cluster](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless.html)
+  `AWS Aurora Serverless cluster <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless.html>`_
   and enable Data API access for it. If you have previously set up an Aurora Serverless cluster, you can enable Data API
   with the following `AWS CLI <https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html>`_ command::
 
       aws rds modify-db-cluster --db-cluster-identifier DB_CLUSTER_NAME --enable-http-endpoint --apply-immediately
 
 * Save the database credentials in
-  [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html) using a format expected
-  by the Data API (a JSON object with the keys ``username`` and ``password``)::
+  `AWS Secrets Manager <https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html>`_ using a format
+  expected by the Data API (a JSON object with the keys ``username`` and ``password``)::
 
       aws secretsmanager put-secret-value --secret-id MY_DB_CREDENTIALS --secret-string "$(jq -n '.username=env.PGUSER | .password=env.PGPASSWORD')"
+
+* Configure your AWS command line credentials using
+  `standard AWS conventions <https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html>`_.
 
 Usage
 -----
@@ -43,14 +47,20 @@ the standard main entry point, and accepts two implementation-specific keyword a
 
 Motivation
 ----------
-The `RDS Data API <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.html>`_ is the missing link
-between the AWS Lambda serverless environment and the sophisticated features provided by PostgreSQL and MySQL. The Data
-API tunnels SQL over HTTP, eliminating the need to use a traditional database driver
+The `RDS Data API <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.html>`_ is the link between the
+AWS Lambda serverless environment and the sophisticated features provided by PostgreSQL and MySQL. The Data API tunnels
+SQL over HTTP, which has advantages in the context of AWS Lambda:
 
+* It eliminates the need to open database ports to the AWS Lambda public IP address pool
+* It uses stateless HTTP connections instead of stateful internal TCP connection pools used by most database drivers
+  (the stateful pools become invalid after going through
+  `AWS Lambda freeze-thaw cycles <https://docs.aws.amazon.com/lambda/latest/dg/running-lambda-code.html>`_, causing
+  connection errors and burdening the database server with abandoned invalid connections)
+* It uses AWS role-based authentication, eliminating the need for the Lambda to handle database credentials directly
 
 Links
 -----
-* `Project home page (GitHub) <https://github.com/chanzuckerberg>`_
+* `Project home page (GitHub) <https://github.com/chanzuckerberg/aurora-data-api>`_
 * `Documentation (Read the Docs) <https://aurora-data-api.readthedocs.io/en/latest/>`_
 * `Package distribution (PyPI) <https://pypi.python.org/pypi/aurora-data-api>`_
 * `Change log <https://github.com/chanzuckerberg/aurora-data-api/blob/master/Changes.rst>`_
