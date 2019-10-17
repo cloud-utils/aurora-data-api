@@ -45,6 +45,14 @@ the standard main entry point, and accepts two implementation-specific keyword a
             cursor.execute("select * from pg_catalog.pg_tables")
             print(cursor.fetchall())
 
+The cursor supports iteration (and automatically wraps the query in a server-side cursor and paginates it if required):
+
+.. code-block:: python
+
+    with conn.cursor() as cursor:
+        for row in cursor.execute("select * from pg_catalog.pg_tables"):
+            print(row)
+
 Motivation
 ----------
 The `RDS Data API <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.html>`_ is the link between the
