@@ -24,6 +24,9 @@ Prerequisites
 
 * Configure your AWS command line credentials using
   `standard AWS conventions <https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html>`_.
+  You can verify that everything works correctly by running a test query via the AWS CLI::
+
+      aws rds-data execute-statement --resource-arn RESOURCE_ARN --secret-arn SECRET_ARN --sql "select * from pg_catalog.pg_tables"
 
 Usage
 -----
