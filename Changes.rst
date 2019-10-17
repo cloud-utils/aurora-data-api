@@ -3,6 +3,11 @@ Changes for v0.0.4 (2019-10-17)
 
 -  Implement pagination and executemany
 
+Changes for v0.0.4 (2019-10-17)
+===============================
+
+-  Implement pagination and executemany
+
 Changes for v0.0.3 (2019-10-10)
 ===============================
 
