@@ -1,4 +1,4 @@
-import datetime, ipaddress, uuid
+import datetime, ipaddress, uuid, time, random, string, logging
 from collections import namedtuple
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
                          InternalError, ProgrammingError, NotSupportedError)
@@ -25,6 +25,8 @@ ROWID = str
 
 ColumnDescription = namedtuple("ColumnDescription", "name type_code display_size internal_size precision scale null_ok")
 ColumnDescription.__new__.__defaults__ = (None,) * len(ColumnDescription._fields)
+
+logger = logging.getLogger(__name__)
 
 
 class AuroraDataAPIClient:
@@ -123,6 +125,8 @@ class AuroraDataAPICursor:
         self._aurora_cluster_arn = aurora_cluster_arn
         self._secret_arn = secret_arn
         self._transaction_id = transaction_id
+        self._iterator = None
+        self._current_response = None
 
     def prepare_param_value(self, param_value):
         param_data_api_type = self.data_api_type_map.get(type(param_value), "stringValue")
@@ -136,27 +140,56 @@ class AuroraDataAPICursor:
                                          type_code=self.pg_type_map.get(column["typeName"], str))
             self.description.append(col_desc)
 
-    def execute(self, operation, parameters=None):
-        execute_statement_args = dict(database=self._dbname,
-                                      resourceArn=self._aurora_cluster_arn,
-                                      secretArn=self._secret_arn,
-                                      includeResultMetadata=True,
-                                      sql=operation)
-        if parameters:
-            execute_statement_args["parameters"] = [
-                {"name": k, "value": self.prepare_param_value(v)}
-                for k, v in parameters.items()
-            ]
-        if self._transaction_id:
-            execute_statement_args["transactionId"] = self._transaction_id
-        self.res = self._client.execute_statement(**execute_statement_args)
-        self._set_description(self.res["columnMetadata"])
-        for i, record in enumerate(self.res["records"]):
-            self.res["records"][i] = tuple(self._render_value(v) for v in self.res["records"][i])
+    def _start_paginated_query(self, execute_statement_args, records_per_page=1000):
+        pg_cursor_name = "{}_{}_{}".format(__name__,
+                                           int(time.time()),
+                                           ''.join(random.choices(string.ascii_letters + string.digits, k=8)))
+        execute_statement_args["sql"] = "DECLARE " + pg_cursor_name + " CURSOR FOR " + execute_statement_args["sql"]
+        self._client.execute_statement(**execute_statement_args)
+        execute_statement_args["sql"] = "FETCH {} FROM {};".format(records_per_page, pg_cursor_name)
+        self._next_page_args = execute_statement_args
 
-    def executemany(operation, seq_of_parameters):
-        # self._client.batch_execute_statement()
-        raise NotImplementedError()
+    def _prepare_execute_args(self, operation):
+        execute_args = dict(database=self._dbname,
+                            resourceArn=self._aurora_cluster_arn,
+                            secretArn=self._secret_arn,
+                            sql=operation)
+        if self._transaction_id:
+            execute_args["transactionId"] = self._transaction_id
+        return execute_args
+
+    def _format_parameter_set(self, parameters):
+        return [
+            {"name": k, "value": self.prepare_param_value(v)}
+            for k, v in parameters.items()
+        ]
+
+    def execute(self, operation, parameters=None):
+        self._iterator, self._next_page_args = None, None
+        execute_statement_args = dict(self._prepare_execute_args(operation),
+                                      includeResultMetadata=True)
+        if parameters:
+            execute_statement_args["parameters"] = self._format_parameter_set(parameters)
+        try:
+            res = self._client.execute_statement(**execute_statement_args)
+            self._set_description(res["columnMetadata"])
+            self._current_response = self._render_response(res)
+        except self._client.exceptions.BadRequestException as e:
+            if "Please paginate your query" in str(e):
+                self._start_paginated_query(execute_statement_args)
+            else:
+                raise
+        self._iterator = iter(self)
+
+    def executemany(self, operation, seq_of_parameters):
+        batch_execute_statement_args = dict(self._prepare_execute_args(operation),
+                                            parameterSets=[self._format_parameter_set(p) for p in seq_of_parameters])
+        self._client.batch_execute_statement(**batch_execute_statement_args)
+
+    def _render_response(self, response):
+        for i, record in enumerate(response["records"]):
+            response["records"][i] = tuple(self._render_value(v) for v in response["records"][i])
+        return response
 
     def _render_value(self, value):
         if value.get("isNull"):
@@ -170,22 +203,41 @@ class AuroraDataAPICursor:
             return list(value.values())[0]
 
     def __iter__(self):
-        for result in self.res["records"]:
-            yield result
-        self.res["records"] = []
+        if self._next_page_args:
+            while True:
+                logger.debug("Fetching page for auto-paginated query")
+                page = self._client.execute_statement(**self._next_page_args)
+                if page["columnMetadata"] and not self.description:
+                    self._set_description(page["columnMetadata"])
+                if len(page["records"]) == 0:
+                    break
+                page = self._render_response(page)
+                for record in page["records"]:
+                    yield record
+        else:
+            for record in self._current_response["records"]:
+                yield record
 
     def fetchone(self):
-        return self.res["records"].pop(0) if len(self.res["records"]) > 0 else None
+        try:
+            return next(self._iterator)
+        except StopIteration:
+            pass
 
     def fetchmany(self, size=None):
         if size is None:
             size = self.arraysize
-        result, self.res["records"] = self.res["records"][:size], self.res["records"][size:]
-        return result
+        results = []
+        while size > 0:
+            result = self.fetchone()
+            if result is None:
+                break
+            results.append(result)
+            size -= 1
+        return results
 
     def fetchall(self):
-        result, self.res["records"] = self.res["records"], []
-        return result
+        return list(self._iterator)
 
     # def nextset(self): TODO
 
@@ -202,7 +254,8 @@ class AuroraDataAPICursor:
         return self
 
     def __exit__(self, err_type, value, traceback):
-        pass
+        self._iterator = None
+        self._current_response = None
 
 
 def connect(aurora_cluster_arn=None, secret_arn=None, database=None, host=None, username=None, password=None):
