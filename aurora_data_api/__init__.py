@@ -147,7 +147,7 @@ class AuroraDataAPICursor:
         execute_statement_args["sql"] = "DECLARE " + pg_cursor_name + " CURSOR FOR " + execute_statement_args["sql"]
         self._client.execute_statement(**execute_statement_args)
         execute_statement_args["sql"] = "FETCH {} FROM {};".format(records_per_page, pg_cursor_name)
-        self._next_page_args = execute_statement_args
+        self._next_page_args = dict(execute_statement_args)
 
     def _prepare_execute_args(self, operation):
         execute_args = dict(database=self._dbname,
