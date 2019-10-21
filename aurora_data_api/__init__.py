@@ -233,7 +233,7 @@ class AuroraDataAPICursor:
             **self._paging_state
         )
         scroll_args = dict(self._paging_state["execute_statement_args"], sql=scroll_stmt)
-        logger.debug("Scrolling cursor %s %d", mode, value)
+        logger.debug("Scrolling cursor %s by %d rows", mode, value)
         self._client.execute_statement(**scroll_args)
 
     def __iter__(self):
@@ -242,7 +242,7 @@ class AuroraDataAPICursor:
             while True:
                 logger.debug("Fetching page of %d records for auto-paginated query",
                              self._paging_state["records_per_page"])
-                next_page_args["sql"] = "FETCH {records_per_page} FROM {pg_cursor_name};".format(**self._paging_state)
+                next_page_args["sql"] = "FETCH {records_per_page} FROM {pg_cursor_name}".format(**self._paging_state)
                 try:
                     page = self._client.execute_statement(**next_page_args)
                 except self._client.exceptions.BadRequestException as e:
