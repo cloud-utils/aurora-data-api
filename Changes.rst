@@ -1,3 +1,8 @@
+Changes for v0.0.5 (2019-10-21)
+===============================
+
+-  Enable autopagination, implement rowcount
+
 Changes for v0.0.4 (2019-10-17)
 ===============================
 

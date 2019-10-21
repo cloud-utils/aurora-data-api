@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="aurora-data-api",
-    version="0.0.4",
+    version="0.0.5",
     url='https://github.com/chanzuckerberg/aurora-data-api',
     license='Apache Software License',
     author='Andrey Kislyuk',
