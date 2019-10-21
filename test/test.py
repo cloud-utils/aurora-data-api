@@ -84,14 +84,13 @@ class TestAuroraDataAPI(unittest.TestCase):
 
     def test_pagination_backoff(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
-            sql = "select concat({}) from aurora_data_api_test"
-            sql = sql.format(", ".join(["cast(doc as text)"] * 64))
+            sql_template = "select concat({}) from aurora_data_api_test"
+            sql = sql_template.format(", ".join(["cast(doc as text)"] * 64))
             cur.execute(sql)
             self.assertEqual(len(cur.fetchall()), 2048)
 
-            sql = "select concat({}) from aurora_data_api_test"
             concat_args = ", ".join(["cast(doc as text)"] * 100)
-            sql = sql.format(", ".join("concat({})".format(concat_args) for i in range(32)))
+            sql = sql_template.format(", ".join("concat({})".format(concat_args) for i in range(32)))
             cur.execute(sql)
             with self.assertRaisesRegex(conn._client.exceptions.BadRequestException,
                                         "Database response exceeded size limit"):
