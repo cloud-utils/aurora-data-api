@@ -185,7 +185,7 @@ class AuroraDataAPICursor:
             if "Please paginate your query" in str(e):
                 self._start_paginated_query(execute_statement_args)
             elif "Database response exceeded size limit" in str(e):
-                self._start_paginated_query(execute_statement_args, records_per_page=500)
+                self._start_paginated_query(execute_statement_args, records_per_page=max(1, self.arraysize // 2))
             else:
                 raise
         self._iterator = iter(self)
