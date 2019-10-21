@@ -28,6 +28,11 @@ class TestAuroraDataAPI(unittest.TestCase):
                 "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]})
             } for i in range(2048)])
 
+    @classmethod
+    def tearDownClass(cls):
+        with aurora_data_api.connect(database=cls.db_name) as conn, conn.cursor() as cur:
+            cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
+
     def test_invalid_statements(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
             with self.assertRaisesRegex(conn._client.exceptions.BadRequestException, "syntax error"):
@@ -84,10 +89,22 @@ class TestAuroraDataAPI(unittest.TestCase):
             cur.execute(sql)
             self.assertEqual(len(cur.fetchall()), 2048)
 
+            sql = "select concat({}) from aurora_data_api_test"
+            concat_args = ", ".join(["cast(doc as text)"] * 100)
+            sql = sql.format(", ".join("concat({})".format(concat_args) for i in range(32)))
+            cur.execute(sql)
+            with self.assertRaisesRegex(conn._client.exceptions.BadRequestException,
+                                        "Database response exceeded size limit"):
+                cur.fetchall()
+
     def test_rowcount(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
             cur.execute("select * from aurora_data_api_test limit 8")
             self.assertEqual(cur.rowcount, 8)
+
+        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+            cur.execute("select * from aurora_data_api_test limit 9000")
+            self.assertEqual(cur.rowcount, -1)
 
 
 if __name__ == "__main__":

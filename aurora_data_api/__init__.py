@@ -175,7 +175,7 @@ class AuroraDataAPICursor:
                                       includeResultMetadata=True)
         if parameters:
             execute_statement_args["parameters"] = self._format_parameter_set(parameters)
-        logger.debug("execute %s", reprlib.repr(operation))
+        logger.debug("execute %s", reprlib.repr(operation.strip()))
         try:
             res = self._client.execute_statement(**execute_statement_args)
             if "columnMetadata" in res:
