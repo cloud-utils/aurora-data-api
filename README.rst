@@ -35,7 +35,10 @@ the standard main entry point, and accepts two implementation-specific keyword a
 
 * ``aurora_cluster_arn`` (also referred to as ``resourceArn`` in the
   `Data API documentation <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds-data.html>`_)
+  * If not given as a keyword argument, this can also be specified using the ``AURORA_CLUSTER_ARN`` environment variable
+
 * ``secret_arn`` (the database credentials secret)
+  * If not given as a keyword argument, this can also be specified using the ``AURORA_SECRET_ARN`` environment variable
 
 .. code-block:: python
 

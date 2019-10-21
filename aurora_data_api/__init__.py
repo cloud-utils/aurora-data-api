@@ -224,10 +224,17 @@ class AuroraDataAPICursor:
         else:
             return list(value.values())[0]
 
-    def _rewind_cursor(self):
-        rewind_stmt = "MOVE RELATIVE -{records_per_page} FROM {pg_cursor_name}".format(**self._paging_state)
-        rewind_args = dict(self._paging_state["execute_statement_args"], sql=rewind_stmt)
-        self._client.execute_statement(**rewind_args)
+    def scroll(self, value, mode="relative"):
+        if not self._paging_state:
+            raise InterfaceError("Cursor scroll attempted but pagination is not active")
+        scroll_stmt = "MOVE {mode} {value} FROM {pg_cursor_name}".format(
+            mode=mode.upper(),
+            value=value,
+            **self._paging_state
+        )
+        scroll_args = dict(self._paging_state["execute_statement_args"], sql=scroll_stmt)
+        logger.debug("Scrolling cursor %s %d", mode, value)
+        self._client.execute_statement(**scroll_args)
 
     def __iter__(self):
         if self._paging_state:
@@ -240,7 +247,7 @@ class AuroraDataAPICursor:
                     page = self._client.execute_statement(**next_page_args)
                 except self._client.exceptions.BadRequestException as e:
                     if "Database response exceeded size limit" in str(e) and self._paging_state["records_per_page"] > 1:
-                        self._rewind_cursor()
+                        self.scroll(-self._paging_state["records_per_page"])  # Rewind the cursor to read the page again
                         logger.debug("Halving records per page")
                         self._paging_state["records_per_page"] //= 2
                         continue
@@ -278,8 +285,6 @@ class AuroraDataAPICursor:
 
     def fetchall(self):
         return list(self._iterator)
-
-    # def nextset(self): TODO
 
     def setinputsizes(self, sizes):
         pass
