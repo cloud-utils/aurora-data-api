@@ -201,7 +201,7 @@ class AuroraDataAPICursor:
         return iter(lambda: list(itertools.islice(iterable, page_size)), [])
 
     def executemany(self, operation, seq_of_parameters):
-        logger.debug("executemany %s", reprlib.repr(operation))
+        logger.debug("executemany %s", reprlib.repr(operation.strip()))
         for batch in self._page_input(seq_of_parameters):
             batch_execute_statement_args = dict(self._prepare_execute_args(operation),
                                                 parameterSets=[self._format_parameter_set(p) for p in batch])
