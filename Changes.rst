@@ -1,3 +1,14 @@
+Changes for v0.1.0 (2019-10-29)
+===============================
+
+-  Process nulls correctly
+
+-  Parameterize page size decrement
+
+-  Implement cursor.scroll()
+
+-  Test and documentation improvements
+
 Changes for v0.0.5 (2019-10-21)
 ===============================
 
