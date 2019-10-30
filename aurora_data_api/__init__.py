@@ -112,7 +112,6 @@ class AuroraDataAPICursor:
         bytes: "blobValue",
         bool: "booleanValue",
         float: "doubleValue",
-        # isNull=None, TODO
         int: "longValue",
         str: "stringValue"
     }
@@ -130,6 +129,8 @@ class AuroraDataAPICursor:
         self._paging_state = None
 
     def prepare_param_value(self, param_value):
+        if param_value is None:
+            return {"isNull": True}
         param_data_api_type = self._data_api_type_map.get(type(param_value), "stringValue")
         return {param_data_api_type: param_value}
 
