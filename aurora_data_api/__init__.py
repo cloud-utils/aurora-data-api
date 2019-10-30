@@ -113,7 +113,8 @@ class AuroraDataAPICursor:
         bool: "booleanValue",
         float: "doubleValue",
         int: "longValue",
-        str: "stringValue"
+        str: "stringValue",
+        list: "arrayValue"
     }
 
     def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None):
@@ -132,6 +133,12 @@ class AuroraDataAPICursor:
         if param_value is None:
             return {"isNull": True}
         param_data_api_type = self._data_api_type_map.get(type(param_value), "stringValue")
+        if param_data_api_type == "arrayValue" and len(param_value) > 0:
+            return {
+                param_data_api_type: {
+                    self._data_api_type_map.get(type(param_value[0]), "stringValue") + "s": param_value
+                }
+            }
         return {param_data_api_type: param_value}
 
     def _set_description(self, column_metadata):
