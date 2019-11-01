@@ -125,8 +125,8 @@ class AuroraDataAPICursor:
         self._aurora_cluster_arn = aurora_cluster_arn
         self._secret_arn = secret_arn
         self._transaction_id = transaction_id
-        self._iterator = None
         self._current_response = None
+        self._iterator = None
         self._paging_state = None
 
     def prepare_param_value(self, param_value):
@@ -178,7 +178,7 @@ class AuroraDataAPICursor:
         ]
 
     def execute(self, operation, parameters=None):
-        self._iterator, self._paging_state = None, None
+        self._current_response, self._iterator, self._paging_state = None, None, None
         execute_statement_args = dict(self._prepare_execute_args(operation),
                                       includeResultMetadata=True)
         if parameters:
