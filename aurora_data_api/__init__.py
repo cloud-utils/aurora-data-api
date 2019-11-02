@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 class AuroraDataAPIClient:
     def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, region_name=None, rds_data_client=None):
+        # TODO: Charset should be selectable
+        self.charset = 'utf8mb4'
         self._client = rds_data_client
         if rds_data_client is None:
             if region_name is None:
