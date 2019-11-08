@@ -125,6 +125,7 @@ class AuroraDataAPICursor:
     def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None):
         self.arraysize = 1000
         self.description = None
+        self.lastrowid = None
         self._client = client
         self._dbname = dbname
         self._aurora_cluster_arn = aurora_cluster_arn
