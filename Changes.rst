@@ -1,3 +1,10 @@
+Changes for v0.1.2 (2019-11-10)
+===============================
+
+-  Add lastrowid support; get database error on MySQL
+
+-  Reset current response at execute start
+
 
 
 Changes for v0.1.0 (2019-10-29)
