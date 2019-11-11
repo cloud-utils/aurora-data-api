@@ -177,6 +177,15 @@ class AuroraDataAPICursor:
             for k, v in parameters.items()
         ]
 
+    def _get_database_error(self, original_error):
+        # TODO: avoid SHOW ERRORS if on postgres (it's a useless network roundtrip)
+        try:
+            err_res = self._client.execute_statement(**self._prepare_execute_args("SHOW ERRORS"))
+            err_info = self._render_response(err_res)["records"][-1]
+            return DatabaseError(err_info[1], err_info[2])
+        except self._client.exceptions.BadRequestException:
+            return DatabaseError(original_error)
+
     def execute(self, operation, parameters=None):
         self._current_response, self._iterator, self._paging_state = None, None, None
         execute_statement_args = dict(self._prepare_execute_args(operation),
@@ -195,7 +204,7 @@ class AuroraDataAPICursor:
             elif "Database response exceeded size limit" in str(e):
                 self._start_paginated_query(execute_statement_args, records_per_page=max(1, self.arraysize // 2))
             else:
-                raise
+                raise self._get_database_error(e)
         self._iterator = iter(self)
 
     @property
@@ -203,6 +212,12 @@ class AuroraDataAPICursor:
         if self._current_response and "records" in self._current_response:
             return len(self._current_response["records"])  # TODO: also get rowcount on atomic INSERT/UPDATE
         return -1
+
+    @property
+    def lastrowid(self):
+        # TODO: this may not make sense if the previous statement is not an INSERT
+        if self._current_response and self._current_response.get("generatedFields"):
+            return self._render_value(self._current_response["generatedFields"][-1])
 
     def _page_input(self, iterable, page_size=1000):
         iterable = iter(iterable)
@@ -213,7 +228,10 @@ class AuroraDataAPICursor:
         for batch in self._page_input(seq_of_parameters):
             batch_execute_statement_args = dict(self._prepare_execute_args(operation),
                                                 parameterSets=[self._format_parameter_set(p) for p in batch])
-            self._client.batch_execute_statement(**batch_execute_statement_args)
+            try:
+                self._client.batch_execute_statement(**batch_execute_statement_args)
+            except self._client.exceptions.BadRequestException as e:
+                raise self._get_database_error(e)
 
     def _render_response(self, response):
         if "records" in response:
@@ -260,7 +278,7 @@ class AuroraDataAPICursor:
                         self._paging_state["records_per_page"] //= 2
                         continue
                     else:
-                        raise
+                        raise self._get_database_error(e)
 
                 if "columnMetadata" in page and not self.description:
                     self._set_description(page["columnMetadata"])

@@ -35,7 +35,7 @@ class TestAuroraDataAPI(unittest.TestCase):
 
     def test_invalid_statements(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
-            with self.assertRaisesRegex(conn._client.exceptions.BadRequestException, "syntax error"):
+            with self.assertRaisesRegex(aurora_data_api.DatabaseError, "syntax error"):
                 cur.execute("selec * from table")
 
     def test_iterators(self):
