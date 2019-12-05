@@ -105,6 +105,18 @@ class TestAuroraDataAPI(unittest.TestCase):
             cur.execute("select * from aurora_data_api_test limit 9000")
             self.assertEqual(cur.rowcount, -1)
 
+        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+            cur.executemany("INSERT INTO aurora_data_api_test(name, doc) VALUES (:name, CAST(:doc AS JSONB))", [{
+                "name": "rowcount{}".format(i),
+                "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]})
+            } for i in range(8)])
+
+            cur.execute("UPDATE aurora_data_api_test SET doc = '{}' WHERE name like 'rowcount%'")
+            self.assertEqual(cur.rowcount, 8)
+
+            cur.execute("DELETE FROM aurora_data_api_test WHERE name like 'rowcount%'")
+            self.assertEqual(cur.rowcount, 8)
+
 
 if __name__ == "__main__":
     unittest.main()

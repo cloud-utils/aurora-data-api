@@ -209,8 +209,11 @@ class AuroraDataAPICursor:
 
     @property
     def rowcount(self):
-        if self._current_response and "records" in self._current_response:
-            return len(self._current_response["records"])  # TODO: also get rowcount on atomic INSERT/UPDATE
+        if self._current_response:
+            if "records" in self._current_response:
+                return len(self._current_response["records"])
+            elif 'numberOfRecordsUpdated' in self._current_response:
+                return self._current_response['numberOfRecordsUpdated']
         return -1
 
     @property
