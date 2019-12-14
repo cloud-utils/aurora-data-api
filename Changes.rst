@@ -1,3 +1,8 @@
+Changes for v0.1.3 (2019-12-14)
+===============================
+
+-  Add rowcount support for update/delete.
+
 Changes for v0.1.2 (2019-11-10)
 ===============================
 
