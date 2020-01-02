@@ -2,6 +2,7 @@ import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, 
 from collections import namedtuple
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
                          InternalError, ProgrammingError, NotSupportedError)
+from .mysql_error_codes import MySQLErrorCodes
 import boto3
 
 apilevel = "2.0"
@@ -30,13 +31,14 @@ logger = logging.getLogger(__name__)
 
 
 class AuroraDataAPIClient:
-    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None):
+    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None):
         self._client = rds_data_client
         if rds_data_client is None:
             self._client = boto3.client("rds-data")
         self._dbname = dbname
         self._aurora_cluster_arn = aurora_cluster_arn or os.environ.get("AURORA_CLUSTER_ARN")
         self._secret_arn = secret_arn or os.environ.get("AURORA_SECRET_ARN")
+        self._charset = charset
         self._transaction_id = None
 
     def close(self):
@@ -65,11 +67,14 @@ class AuroraDataAPIClient:
                                                  # schema="string", TODO
                                                  secretArn=self._secret_arn)
             self._transaction_id = res["transactionId"]
-        return AuroraDataAPICursor(client=self._client,
-                                   dbname=self._dbname,
-                                   aurora_cluster_arn=self._aurora_cluster_arn,
-                                   secret_arn=self._secret_arn,
-                                   transaction_id=self._transaction_id)
+        cursor = AuroraDataAPICursor(client=self._client,
+                                     dbname=self._dbname,
+                                     aurora_cluster_arn=self._aurora_cluster_arn,
+                                     secret_arn=self._secret_arn,
+                                     transaction_id=self._transaction_id)
+        if self._charset:
+            cursor.execute("SET character_set_client = '{}'".format(self._charset))
+        return cursor
 
     def __enter__(self):
         return self
@@ -150,6 +155,9 @@ class AuroraDataAPICursor:
             self.description.append(col_desc)
 
     def _start_paginated_query(self, execute_statement_args, records_per_page=None):
+        # MySQL cursors are non-scrollable (https://dev.mysql.com/doc/refman/8.0/en/cursors.html)
+        # - may not support page autosizing
+        # - FETCH requires INTO - may need to write all results into a server side var and iterate on it
         pg_cursor_name = "{}_{}_{}".format(__name__,
                                            int(time.time()),
                                            ''.join(random.choices(string.ascii_letters + string.digits, k=8)))
@@ -182,7 +190,7 @@ class AuroraDataAPICursor:
         try:
             err_res = self._client.execute_statement(**self._prepare_execute_args("SHOW ERRORS"))
             err_info = self._render_response(err_res)["records"][-1]
-            return DatabaseError(err_info[1], err_info[2])
+            return DatabaseError(MySQLErrorCodes(err_info[1]), err_info[2])
         except self._client.exceptions.BadRequestException:
             return DatabaseError(original_error)
 
@@ -204,7 +212,7 @@ class AuroraDataAPICursor:
             elif "Database response exceeded size limit" in str(e):
                 self._start_paginated_query(execute_statement_args, records_per_page=max(1, self.arraysize // 2))
             else:
-                raise self._get_database_error(e)
+                raise self._get_database_error(e) from e
         self._iterator = iter(self)
 
     @property
@@ -234,7 +242,7 @@ class AuroraDataAPICursor:
             try:
                 self._client.batch_execute_statement(**batch_execute_statement_args)
             except self._client.exceptions.BadRequestException as e:
-                raise self._get_database_error(e)
+                raise self._get_database_error(e) from e
 
     def _render_response(self, response):
         if "records" in response:
@@ -281,7 +289,7 @@ class AuroraDataAPICursor:
                         self._paging_state["records_per_page"] //= 2
                         continue
                     else:
-                        raise self._get_database_error(e)
+                        raise self._get_database_error(e) from e
 
                 if "columnMetadata" in page and not self.description:
                     self._set_description(page["columnMetadata"])
@@ -332,5 +340,7 @@ class AuroraDataAPICursor:
         self._current_response = None
 
 
-def connect(aurora_cluster_arn=None, secret_arn=None, database=None, host=None, username=None, password=None):
-    return AuroraDataAPIClient(dbname=database, aurora_cluster_arn=aurora_cluster_arn, secret_arn=secret_arn)
+def connect(aurora_cluster_arn=None, secret_arn=None, database=None, host=None, username=None, password=None,
+            charset=None):
+    return AuroraDataAPIClient(dbname=database, aurora_cluster_arn=aurora_cluster_arn, secret_arn=secret_arn,
+                               charset=charset)

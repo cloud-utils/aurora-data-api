@@ -3,6 +3,7 @@ import os, sys, json, unittest, logging, uuid
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 
 import aurora_data_api
+from aurora_data_api.mysql_error_codes import MySQLErrorCodes
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("aurora_data_api").setLevel(logging.DEBUG)
@@ -10,23 +11,36 @@ logging.getLogger("urllib3.connectionpool").setLevel(logging.DEBUG)
 
 
 class TestAuroraDataAPI(unittest.TestCase):
+    using_mysql = False
+
     @classmethod
     def setUpClass(cls):
         cls.db_name = os.environ.get("AURORA_DB_NAME", __name__)
         with aurora_data_api.connect(database=cls.db_name) as conn, conn.cursor() as cur:
-            cur.execute("""
-                CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-                DROP TABLE IF EXISTS aurora_data_api_test;
-                CREATE TABLE aurora_data_api_test (
-                    id SERIAL,
-                    name TEXT,
-                    doc JSONB DEFAULT '{}'
-                )
-            """)
-            cur.executemany("INSERT INTO aurora_data_api_test(name, doc) VALUES (:name, CAST(:doc AS JSONB))", [{
-                "name": "row{}".format(i),
-                "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]})
-            } for i in range(2048)])
+            try:
+                cur.execute("""
+                    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+                    DROP TABLE IF EXISTS aurora_data_api_test;
+                    CREATE TABLE aurora_data_api_test (
+                        id SERIAL,
+                        name TEXT,
+                        doc JSONB DEFAULT '{}'
+                    )
+                """)
+                cur.executemany("INSERT INTO aurora_data_api_test(name, doc) VALUES (:name, CAST(:doc AS JSONB))", [{
+                    "name": "row{}".format(i),
+                    "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]})
+                } for i in range(2048)])
+            except aurora_data_api.DatabaseError as e:
+                if e.args[0] != MySQLErrorCodes.ER_PARSE_ERROR:
+                    raise
+                cls.using_mysql = True
+                cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
+                cur.execute("CREATE TABLE aurora_data_api_test (id SERIAL, name TEXT, birthday DATE)")
+                cur.executemany("INSERT INTO aurora_data_api_test(name, birthday) VALUES (:name, :birthday)", [{
+                    "name": "row{}".format(i),
+                    "birthday": "2000-01-01"
+                } for i in range(2048)])
 
     @classmethod
     def tearDownClass(cls):
@@ -35,35 +49,38 @@ class TestAuroraDataAPI(unittest.TestCase):
 
     def test_invalid_statements(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
-            with self.assertRaisesRegex(aurora_data_api.DatabaseError, "syntax error"):
+            with self.assertRaisesRegex(aurora_data_api.DatabaseError, "syntax"):
                 cur.execute("selec * from table")
 
     def test_iterators(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
-            cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**6))
-            self.assertEqual(cur.fetchone()[0], 0)
-            cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**7))
-            self.assertEqual(cur.fetchone()[0], 1594)
-            cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**8))
-            self.assertEqual(cur.fetchone()[0], 1697)
-            cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**10))
-            self.assertEqual(cur.fetchone()[0], 2048)
+            if not self.using_mysql:
+                cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**6))
+                self.assertEqual(cur.fetchone()[0], 0)
+                cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**7))
+                self.assertEqual(cur.fetchone()[0], 1594)
+                cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**8))
+                self.assertEqual(cur.fetchone()[0], 1697)
+                cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**10))
+                self.assertEqual(cur.fetchone()[0], 2048)
 
             with conn.cursor() as cursor:
+                expect_row0 = (1, 'row0', '2000-01-01' if self.using_mysql else '{"x": 0, "y": "0", "z": [0, 0, 1]}')
                 i = 0
                 cursor.execute("select * from aurora_data_api_test")
                 for f in cursor:
                     if i == 0:
-                        self.assertEqual(f, (1, 'row0', '{"x": 0, "y": "0", "z": [0, 0, 1]}'))
+                        self.assertEqual(f, expect_row0)
                     i += 1
                 self.assertEqual(i, 2048)
 
                 cursor.execute("select * from aurora_data_api_test")
                 data = cursor.fetchall()
-                self.assertEqual(data[0], (1, 'row0', '{"x": 0, "y": "0", "z": [0, 0, 1]}'))
+                self.assertEqual(data[0], expect_row0)
                 self.assertEqual(data[-1][0], 2048)
                 self.assertEqual(data[-1][1], 'row2047')
-                self.assertEqual(json.loads(data[-1][-1]), {"x": 2047, "y": str(2047), "z": [2047, 2047 * 2047, 0]})
+                if not self.using_mysql:
+                    self.assertEqual(json.loads(data[-1][-1]), {"x": 2047, "y": str(2047), "z": [2047, 2047 * 2047, 0]})
                 self.assertEqual(len(data), 2048)
                 self.assertEqual(len(cursor.fetchall()), 0)
 
@@ -83,6 +100,8 @@ class TestAuroraDataAPI(unittest.TestCase):
                     self.assertIn(len(fm), [1001, 46])
 
     def test_pagination_backoff(self):
+        if self.using_mysql:
+            return
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
             sql_template = "select concat({}) from aurora_data_api_test"
             sql = sql_template.format(", ".join(["cast(doc as text)"] * 64))
@@ -103,7 +122,10 @@ class TestAuroraDataAPI(unittest.TestCase):
 
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
             cur.execute("select * from aurora_data_api_test limit 9000")
-            self.assertEqual(cur.rowcount, -1)
+            self.assertEqual(cur.rowcount, 2048 if self.using_mysql else -1)
+
+        if self.using_mysql:
+            return
 
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
             cur.executemany("INSERT INTO aurora_data_api_test(name, doc) VALUES (:name, CAST(:doc AS JSONB))", [{
