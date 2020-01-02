@@ -1,3 +1,6 @@
+"""
+aurora-data-api
+"""
 import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib
 from collections import namedtuple
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
