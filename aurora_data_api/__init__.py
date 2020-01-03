@@ -1,5 +1,5 @@
 """
-aurora-data-api
+aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
 import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib
 from collections import namedtuple
