@@ -124,6 +124,8 @@ class AuroraDataAPICursor:
         str: "stringValue",
         # list: "arrayValue"
     }
+    # functions to convert from python to parameter type
+    _py_type_converter_map = {uuid.UUID: str}
 
     def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None):
         self.arraysize = 1000
@@ -140,7 +142,15 @@ class AuroraDataAPICursor:
     def prepare_param_value(self, param_value):
         if param_value is None:
             return {"isNull": True}
-        param_data_api_type = self._data_api_type_map.get(type(param_value), "stringValue")
+
+        param_value_type = type(param_value)
+
+        if param_value_type in self._py_type_converter_map:
+            param_value = self._py_type_converter_map[param_value_type](param_value)
+
+        param_data_api_type = self._data_api_type_map.get(
+            type(param_value), "stringValue"
+        )
         # if param_data_api_type == "arrayValue" and len(param_value) > 0:
         #     return {
         #         param_data_api_type: {
