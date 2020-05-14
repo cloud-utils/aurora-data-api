@@ -1,7 +1,7 @@
 """
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
-import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib
+import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib, re
 from collections import namedtuple
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
                          InternalError, ProgrammingError, NotSupportedError)
@@ -173,7 +173,25 @@ class AuroraDataAPICursor:
             "pg_cursor_name": pg_cursor_name
         }
 
-    def _prepare_execute_args(self, operation):
+    def _prepare_execute_args(self, operation, parameters=None):
+        if isinstance(parameters, dict):
+            logger.debug("replace placeholders \%\(name\)s with :name")
+            matchs = re.finditer(r"\%\((.*?)\)s", operation)
+            for m in matchs:
+                operation = operation.replace(m.group(0), ":" + m.group(1))
+        if isinstance(parameters, (list, tuple)):
+            logger.debug("replace placeholders \%\s or :s with :s1")
+            placeholder_pattern = re.compile(r'[\%\:]s(\W|$)')
+            placeholder_count = len(placeholder_pattern.findall(operation))
+            if placeholder_count != len(parameters):
+                raise InterfaceError(
+                    "Placeholders in query: {} dosn't match parameters: {}".format(operation, parameters))
+            for i in range(placeholder_count):
+                key = f"s{i}"
+                repl = lambda m: f":{key}{m.group(1)}"
+                operation = re.sub(r'[\%\:]s(\W|$)', repl, operation, 1)
+        
+        logger.debug("prepared operation: %s", operation)
         execute_args = dict(database=self._dbname,
                             resourceArn=self._aurora_cluster_arn,
                             secretArn=self._secret_arn,
@@ -183,10 +201,16 @@ class AuroraDataAPICursor:
         return execute_args
 
     def _format_parameter_set(self, parameters):
-        return [
-            {"name": k, "value": self.prepare_param_value(v)}
-            for k, v in parameters.items()
-        ]
+        if isinstance(parameters, dict):
+            return [
+                {"name": k, "value": self.prepare_param_value(v)}
+                for k, v in parameters.items()
+            ]
+        if isinstance(parameters, (list, tuple)):
+            return [
+                {"name": f"s{i}", "value": self.prepare_param_value(p)}
+                for i, p in enumerate(parameters)
+            ]
 
     def _get_database_error(self, original_error):
         # TODO: avoid SHOW ERRORS if on postgres (it's a useless network roundtrip)
@@ -198,8 +222,17 @@ class AuroraDataAPICursor:
             return DatabaseError(original_error)
 
     def execute(self, operation, parameters=None):
+        """Execute a query
+        :param str operation: Query to execute.
+        :param parameters: parameters used with query. (optional)
+        :type parameters: tuple, list or dict
+        :return: Iterator over result
+        :rtype: iterator
+        If parameters is a list or tuple, %s or :s can be used as a placeholder in the query.
+        If parameters is a dict, %(name)s or :name can be used as a placeholder in the query.
+        """
         self._current_response, self._iterator, self._paging_state = None, None, None
-        execute_statement_args = dict(self._prepare_execute_args(operation),
+        execute_statement_args = dict(self._prepare_execute_args(operation, parameters),
                                       includeResultMetadata=True)
         if parameters:
             execute_statement_args["parameters"] = self._format_parameter_set(parameters)
@@ -238,9 +271,14 @@ class AuroraDataAPICursor:
         return iter(lambda: list(itertools.islice(iterable, page_size)), [])
 
     def executemany(self, operation, seq_of_parameters):
+        """Run several data against one query
+        :param operation: query to execute
+        :param seq_of_parameters:  Sequence of sequences or parameters.  It is used as parameter.
+        This method improves performance on multiple-row operations like INSERT and REPLACE.
+        """
         logger.debug("executemany %s", reprlib.repr(operation.strip()))
         for batch in self._page_input(seq_of_parameters):
-            batch_execute_statement_args = dict(self._prepare_execute_args(operation),
+            batch_execute_statement_args = dict(self._prepare_execute_args(operation, batch[0]),
                                                 parameterSets=[self._format_parameter_set(p) for p in batch])
             try:
                 self._client.batch_execute_statement(**batch_execute_statement_args)
@@ -346,5 +384,4 @@ class AuroraDataAPICursor:
 def connect(aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, database=None, host=None, username=None, password=None,
             charset=None):
     return AuroraDataAPIClient(dbname=database, aurora_cluster_arn=aurora_cluster_arn,
-                               secret_arn=secret_arn, rds_data_client=rds_data_client, charset=charset
-      
+                               secret_arn=secret_arn, rds_data_client=rds_data_client, charset=charset)

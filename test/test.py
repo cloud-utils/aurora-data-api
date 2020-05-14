@@ -7,7 +7,7 @@ from aurora_data_api.mysql_error_codes import MySQLErrorCodes
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("aurora_data_api").setLevel(logging.DEBUG)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.DEBUG)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
 
 
 class TestAuroraDataAPI(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestAuroraDataAPI(unittest.TestCase):
                         doc JSONB DEFAULT '{}'
                     )
                 """)
-                cur.executemany("INSERT INTO aurora_data_api_test(name, doc) VALUES (:name, CAST(:doc AS JSONB))", [{
+                cur.executemany("INSERT INTO aurora_data_api_test(name, doc) VALUES (name, CAST(:doc AS JSONB))", [{
                     "name": "row{}".format(i),
                     "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]})
                 } for i in range(2048)])
@@ -37,10 +37,23 @@ class TestAuroraDataAPI(unittest.TestCase):
                 cls.using_mysql = True
                 cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
                 cur.execute("CREATE TABLE aurora_data_api_test (id SERIAL, name TEXT, birthday DATE)")
+                
                 cur.executemany("INSERT INTO aurora_data_api_test(name, birthday) VALUES (:name, :birthday)", [{
                     "name": "row{}".format(i),
                     "birthday": "2000-01-01"
                 } for i in range(2048)])
+                cur.execute("TRUNCATE TABLE aurora_data_api_test")
+                
+                # Try diffrent placeholder
+                cur.executemany("INSERT INTO aurora_data_api_test(name, birthday) VALUES (%(name)s, %(birthday)s)".format(), [{
+                    "name": "row{}".format(i),
+                    "birthday": "2000-01-01"
+                } for i in range(2048)])
+                cur.execute("TRUNCATE TABLE aurora_data_api_test")
+                
+                # Try diffrent placeholder
+                cur.executemany("INSERT INTO aurora_data_api_test(name, birthday) VALUES (%s, %s)".format(), 
+                    [("row{}".format(i),"2000-01-01") for i in range(2048)])
 
     @classmethod
     def tearDownClass(cls):
@@ -138,6 +151,7 @@ class TestAuroraDataAPI(unittest.TestCase):
 
             cur.execute("DELETE FROM aurora_data_api_test WHERE name like 'rowcount%'")
             self.assertEqual(cur.rowcount, 8)
+
 
 
 if __name__ == "__main__":

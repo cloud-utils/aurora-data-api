@@ -11,11 +11,19 @@ __pycache__/
 /dist/
 /.eggs/
 
+# virtualenv
+.venv/
+.tox/
+.env/
+.pipenv/
+.conda/
+
 # Sphinx documentation
 /docs/_build/
 
 # IDE project files
 /.pydevproject
+.vscode
 
 # vim python-mode plugin
 /.ropeproject
