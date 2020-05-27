@@ -216,12 +216,16 @@ class AuroraDataAPICursor:
         # TODO: avoid SHOW ERRORS if on postgres (it's a useless network roundtrip)
         try:
             err_res = self._client.execute_statement(**self._prepare_execute_args("SHOW ERRORS"))
-            err_info = self._render_response(err_res)["records"][-1]
-            return DatabaseError(MySQLErrorCodes(err_info[1]), err_info[2])
+            err_infos = self._render_response(err_res)["records"]
+            if err_infos and len(err_infos) > 0:
+                err_info = err_infos[-1]
+                return DatabaseError(MySQLErrorCodes(err_info[1]), err_info[2])
+            else:
+                return DatabaseError(original_error)
         except self._client.exceptions.BadRequestException:
             return DatabaseError(original_error)
 
-    def execute(self, operation, parameters=None):
+    def execute(self, operation, parameters=None, continue_after_timeout=False):
         """Execute a query
         :param str operation: Query to execute.
         :param parameters: parameters used with query. (optional)
@@ -232,8 +236,8 @@ class AuroraDataAPICursor:
         If parameters is a dict, %(name)s or :name can be used as a placeholder in the query.
         """
         self._current_response, self._iterator, self._paging_state = None, None, None
-        execute_statement_args = dict(self._prepare_execute_args(operation, parameters),
-                                      includeResultMetadata=True)
+        execute_statement_args = dict(self._prepare_execute_args(operation),
+                                      includeResultMetadata=True, continueAfterTimeout=continue_after_timeout)
         if parameters:
             execute_statement_args["parameters"] = self._format_parameter_set(parameters)
         logger.debug("execute %s", reprlib.repr(operation.strip()))
