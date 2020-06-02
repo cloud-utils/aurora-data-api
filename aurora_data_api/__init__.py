@@ -37,7 +37,11 @@ class AuroraDataAPIClient:
     def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None):
         self._client = rds_data_client
         if rds_data_client is None:
-            self._client = boto3.client("rds-data")
+            client_kwargs = {}
+            region_name = aurora_cluster_arn.split(':')[3]
+            if region_name:
+                client_kwargs['region_name'] = region_name
+            self._client = boto3.client("rds-data", **client_kwargs)
         self._dbname = dbname
         self._aurora_cluster_arn = aurora_cluster_arn or os.environ.get("AURORA_CLUSTER_ARN")
         self._secret_arn = secret_arn or os.environ.get("AURORA_SECRET_ARN")
