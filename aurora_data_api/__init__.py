@@ -2,6 +2,7 @@
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
 import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib
+from decimal import Decimal
 from collections import namedtuple
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
                          InternalError, ProgrammingError, NotSupportedError)
@@ -26,6 +27,7 @@ BINARY = bytes
 NUMBER = float
 DATETIME = datetime.datetime
 ROWID = str
+DECIMAL = Decimal
 
 ColumnDescription = namedtuple("ColumnDescription", "name type_code display_size internal_size precision scale null_ok")
 ColumnDescription.__new__.__defaults__ = (None,) * len(ColumnDescription._fields)
@@ -114,7 +116,9 @@ class AuroraDataAPICursor:
         "text": str,
         "time": datetime.time,
         "timestamp": datetime.datetime,
-        "uuid": uuid.uuid4
+        "uuid": uuid.uuid4,
+        "numeric": Decimal,
+        "decimal": Decimal
     }
     _data_api_type_map = {
         bytes: "blobValue",
@@ -122,7 +126,11 @@ class AuroraDataAPICursor:
         float: "doubleValue",
         int: "longValue",
         str: "stringValue",
+        Decimal: "stringValue"
         # list: "arrayValue"
+    }
+    _data_api_type_hint_map = {
+        Decimal: "DECIMAL"
     }
 
     def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None):
@@ -141,6 +149,9 @@ class AuroraDataAPICursor:
         if param_value is None:
             return {"isNull": True}
         param_data_api_type = self._data_api_type_map.get(type(param_value), "stringValue")
+        param_data_api_type_hint = self._data_api_type_hint_map.get(type(param_value), None)
+        if param_data_api_type_hint:
+            return {param_data_api_type: param_value, "typeHint": param_data_api_type_hint}
         # if param_data_api_type == "arrayValue" and len(param_value) > 0:
         #     return {
         #         param_data_api_type: {
