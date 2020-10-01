@@ -1,3 +1,13 @@
+Changes for v0.2.1 (2020-10-01)
+===============================
+
+-  connect(): Accept and ignore port kwarg
+
+-  Add numeric and decmial support (#16)
+
+-  Accept boto3 rds data client as a connection arg to engine options
+   (#10)
+
 Changes for v0.2.0 (2020-01-02)
 ===============================
 
