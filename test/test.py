@@ -1,9 +1,9 @@
-import os, sys, json, unittest, logging, uuid, decimal
+import os, sys, json, unittest, logging, uuid, decimal, datetime
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import aurora_data_api
-from aurora_data_api.mysql_error_codes import MySQLErrorCodes
+import aurora_data_api  # noqa
+from aurora_data_api.mysql_error_codes import MySQLErrorCodes  # noqa
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("aurora_data_api").setLevel(logging.DEBUG)
@@ -28,22 +28,28 @@ class TestAuroraDataAPI(unittest.TestCase):
                         num NUMERIC (10, 5) DEFAULT 0.0
                     )
                 """)
-                cur.executemany("INSERT INTO aurora_data_api_test(name, doc, num) VALUES (:name, CAST(:doc AS JSONB), :num)", [{
-                    "name": "row{}".format(i),
-                    "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]}),
-                    "num": decimal.Decimal("%d.%d" % (i, i))
-                } for i in range(2048)])
+                cur.executemany(
+                    "INSERT INTO aurora_data_api_test(name, doc, num) VALUES (:name, CAST(:doc AS JSONB), :num)", [{
+                        "name": "row{}".format(i),
+                        "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]}),
+                        "num": decimal.Decimal("%d.%d" % (i, i))
+                    } for i in range(2048)]
+                )
             except aurora_data_api.DatabaseError as e:
                 if e.args[0] != MySQLErrorCodes.ER_PARSE_ERROR:
                     raise
                 cls.using_mysql = True
                 cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
-                cur.execute("CREATE TABLE aurora_data_api_test (id SERIAL, name TEXT, birthday DATE, num NUMERIC(10, 5))")
-                cur.executemany("INSERT INTO aurora_data_api_test(name, birthday, num) VALUES (:name, :birthday, :num)", [{
-                    "name": "row{}".format(i),
-                    "birthday": "2000-01-01",
-                    "num": decimal.Decimal("%d.%d" % (i, i))
-                } for i in range(2048)])
+                cur.execute(
+                    "CREATE TABLE aurora_data_api_test (id SERIAL, name TEXT, birthday DATE, num NUMERIC(10, 5))"
+                )
+                cur.executemany(
+                    "INSERT INTO aurora_data_api_test(name, birthday, num) VALUES (:name, :birthday, :num)", [{
+                        "name": "row{}".format(i),
+                        "birthday": "2000-01-01",
+                        "num": decimal.Decimal("%d.%d" % (i, i))
+                    } for i in range(2048)]
+                )
 
     @classmethod
     def tearDownClass(cls):
@@ -68,7 +74,10 @@ class TestAuroraDataAPI(unittest.TestCase):
                 self.assertEqual(cur.fetchone()[0], 2048)
 
             with conn.cursor() as cursor:
-                expect_row0 = (1, 'row0', '2000-01-01' if self.using_mysql else '{"x": 0, "y": "0", "z": [0, 0, 1]}', decimal.Decimal(0))
+                expect_row0 = (1,
+                               'row0',
+                               datetime.date(2000, 1, 1) if self.using_mysql else '{"x": 0, "y": "0", "z": [0, 0, 1]}',
+                               decimal.Decimal(0))
                 i = 0
                 cursor.execute("select * from aurora_data_api_test")
                 for f in cursor:

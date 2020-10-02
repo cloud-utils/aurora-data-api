@@ -130,6 +130,9 @@ class AuroraDataAPICursor:
         # list: "arrayValue"
     }
     _data_api_type_hint_map = {
+        datetime.date: "DATE",
+        datetime.time: "TIME",
+        datetime.datetime: "TIMESTAMP",
         Decimal: "DECIMAL"
     }
 
@@ -145,27 +148,29 @@ class AuroraDataAPICursor:
         self._iterator = None
         self._paging_state = None
 
-    def prepare_param_value(self, param_value):
+    def prepare_param(self, param_name, param_value):
         if param_value is None:
-            return {"isNull": True}
+            return dict(name=param_name, value=dict(isNull=True))
         param_data_api_type = self._data_api_type_map.get(type(param_value), "stringValue")
-        param_data_api_type_hint = self._data_api_type_hint_map.get(type(param_value), None)
-        if param_data_api_type_hint:
-            return {param_data_api_type: param_value, "typeHint": param_data_api_type_hint}
+        if param_data_api_type == "stringValue" and not isinstance(param_value, str):
+            param_value = str(param_value)
         # if param_data_api_type == "arrayValue" and len(param_value) > 0:
         #     return {
         #         param_data_api_type: {
         #             self._data_api_type_map.get(type(param_value[0]), "stringValue") + "s": param_value
         #         }
         #     }
-        return {param_data_api_type: param_value}
+        param = dict(name=param_name, value={param_data_api_type: param_value})
+        if type(param_value) in self._data_api_type_hint_map:
+            param["typeHint"] = self._data_api_type_hint_map[type(param_value)]
+        return param
 
     def _set_description(self, column_metadata):
         # see https://www.postgresql.org/docs/9.5/datatype.html
         self.description = []
         for column in column_metadata:
             col_desc = ColumnDescription(name=column["name"],
-                                         type_code=self._pg_type_map.get(column["typeName"], str))
+                                         type_code=self._pg_type_map.get(column["typeName"].lower(), str))
             self.description.append(col_desc)
 
     def _start_paginated_query(self, execute_statement_args, records_per_page=None):
@@ -194,10 +199,7 @@ class AuroraDataAPICursor:
         return execute_args
 
     def _format_parameter_set(self, parameters):
-        return [
-            {"name": k, "value": self.prepare_param_value(v)}
-            for k, v in parameters.items()
-        ]
+        return [self.prepare_param(k, v) for k, v in parameters.items()]
 
     def _get_database_error(self, original_error):
         # TODO: avoid SHOW ERRORS if on postgres (it's a useless network roundtrip)
@@ -242,7 +244,7 @@ class AuroraDataAPICursor:
     def lastrowid(self):
         # TODO: this may not make sense if the previous statement is not an INSERT
         if self._current_response and self._current_response.get("generatedFields"):
-            return self._render_value(self._current_response["generatedFields"][-1])
+            return self._render_value(self._current_response["generatedFields"][-1], col_desc=None)
 
     def _page_input(self, iterable, page_size=1000):
         iterable = iter(iterable)
@@ -261,10 +263,13 @@ class AuroraDataAPICursor:
     def _render_response(self, response):
         if "records" in response:
             for i, record in enumerate(response["records"]):
-                response["records"][i] = tuple(self._render_value(v) for v in response["records"][i])
+                response["records"][i] = tuple(
+                    self._render_value(value, col_desc=self.description[j] if self.description else None)
+                    for j, value in enumerate(record)
+                )
         return response
 
-    def _render_value(self, value):
+    def _render_value(self, value, col_desc):
         if value.get("isNull"):
             return None
         elif "arrayValue" in value:
@@ -273,7 +278,21 @@ class AuroraDataAPICursor:
             else:
                 return list(value["arrayValue"].values())[0]
         else:
-            return list(value.values())[0]
+            scalar_value = list(value.values())[0]
+            if col_desc and col_desc.type_code in self._data_api_type_hint_map:
+                if col_desc.type_code == Decimal:
+                    scalar_value = Decimal(scalar_value)
+                else:
+                    try:
+                        scalar_value = col_desc.type_code.fromisoformat(value)
+                    except AttributeError:  # fromisoformat not supported on Python < 3.7
+                        if col_desc.type_code == datetime.date:
+                            scalar_value = datetime.datetime.strptime(scalar_value, "%Y-%m-%d").date()
+                        elif col_desc.type_code == datetime.time:
+                            scalar_value = datetime.datetime.strptime(scalar_value, "%H:%M:%S").time()
+                        else:
+                            scalar_value = datetime.datetime.strptime(scalar_value, "%Y-%m-%d %H:%M:%S")
+            return scalar_value
 
     def scroll(self, value, mode="relative"):
         if not self._paging_state:
