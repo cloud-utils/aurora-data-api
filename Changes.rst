@@ -1,3 +1,8 @@
+Changes for v0.2.4 (2020-10-02)
+===============================
+
+Fix bug in param prep hint application
+
 Changes for v0.2.3 (2020-10-02)
 ===============================
 
