@@ -152,18 +152,19 @@ class AuroraDataAPICursor:
         if param_value is None:
             return dict(name=param_name, value=dict(isNull=True))
         param_data_api_type = self._data_api_type_map.get(type(param_value), "stringValue")
+        param = dict(name=param_name, value={param_data_api_type: param_value})
         if param_data_api_type == "stringValue" and not isinstance(param_value, str):
-            param_value = str(param_value)
+            param["value"][param_data_api_type] = str(param_value)
+        if type(param_value) in self._data_api_type_hint_map:
+            param["typeHint"] = self._data_api_type_hint_map[type(param_value)]
+        return param
+
         # if param_data_api_type == "arrayValue" and len(param_value) > 0:
         #     return {
         #         param_data_api_type: {
         #             self._data_api_type_map.get(type(param_value[0]), "stringValue") + "s": param_value
         #         }
         #     }
-        param = dict(name=param_name, value={param_data_api_type: param_value})
-        if type(param_value) in self._data_api_type_hint_map:
-            param["typeHint"] = self._data_api_type_hint_map[type(param_value)]
-        return param
 
     def _set_description(self, column_metadata):
         # see https://www.postgresql.org/docs/9.5/datatype.html
