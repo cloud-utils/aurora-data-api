@@ -290,6 +290,8 @@ class AuroraDataAPICursor:
                             scalar_value = datetime.datetime.strptime(scalar_value, "%Y-%m-%d").date()
                         elif col_desc.type_code == datetime.time:
                             scalar_value = datetime.datetime.strptime(scalar_value, "%H:%M:%S").time()
+                        elif "." in scalar_value:
+                            scalar_value = datetime.datetime.strptime(scalar_value, "%Y-%m-%d %H:%M:%S.%f")
                         else:
                             scalar_value = datetime.datetime.strptime(scalar_value, "%Y-%m-%d %H:%M:%S")
             return scalar_value
