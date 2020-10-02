@@ -244,7 +244,7 @@ class AuroraDataAPICursor:
     def lastrowid(self):
         # TODO: this may not make sense if the previous statement is not an INSERT
         if self._current_response and self._current_response.get("generatedFields"):
-            return self._render_value(self._current_response["generatedFields"][-1], col_desc=None)
+            return self._render_value(self._current_response["generatedFields"][-1])
 
     def _page_input(self, iterable, page_size=1000):
         iterable = iter(iterable)
@@ -269,7 +269,7 @@ class AuroraDataAPICursor:
                 )
         return response
 
-    def _render_value(self, value, col_desc):
+    def _render_value(self, value, col_desc=None):
         if value.get("isNull"):
             return None
         elif "arrayValue" in value:
