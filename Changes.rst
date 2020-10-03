@@ -1,3 +1,8 @@
+Changes for v0.2.5 (2020-10-03)
+===============================
+
+Fix refactoring of timestamp casting
+
 Changes for v0.2.4 (2020-10-02)
 ===============================
 
