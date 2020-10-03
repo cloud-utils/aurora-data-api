@@ -285,7 +285,7 @@ class AuroraDataAPICursor:
                     scalar_value = Decimal(scalar_value)
                 else:
                     try:
-                        scalar_value = col_desc.type_code.fromisoformat(value)
+                        scalar_value = col_desc.type_code.fromisoformat(scalar_value)
                     except AttributeError:  # fromisoformat not supported on Python < 3.7
                         if col_desc.type_code == datetime.date:
                             scalar_value = datetime.datetime.strptime(scalar_value, "%Y-%m-%d").date()
