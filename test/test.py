@@ -135,7 +135,7 @@ class TestAuroraDataAPI(unittest.TestCase):
 
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
             cur.execute("select * from aurora_data_api_test limit 9000")
-            self.assertEqual(cur.rowcount, 2048 if self.using_mysql else -1)
+            self.assertEqual(cur.rowcount, 2048)
 
         if self.using_mysql:
             return

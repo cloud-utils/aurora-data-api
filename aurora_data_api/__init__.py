@@ -202,14 +202,13 @@ class AuroraDataAPICursor:
     def _format_parameter_set(self, parameters):
         return [self.prepare_param(k, v) for k, v in parameters.items()]
 
-    def _get_database_error(self, original_error):
-        # TODO: avoid SHOW ERRORS if on postgres (it's a useless network roundtrip)
-        try:
-            err_res = self._client.execute_statement(**self._prepare_execute_args("SHOW ERRORS"))
-            err_info = self._render_response(err_res)["records"][-1]
-            return DatabaseError(MySQLErrorCodes(err_info[1]), err_info[2])
-        except self._client.exceptions.BadRequestException:
-            return DatabaseError(original_error)
+    def _get_database_error(self, origin_error):
+        if getattr(origin_error, "response", {}).get("Error", {}).get("Message", "").startswith("Database error code"):
+            assert origin_error.response["Error"]["Message"].startswith("Database error code")
+            code, msg = (s.split(": ", 1)[1] for s in origin_error.response["Error"]["Message"].split(". ", 1))
+            return DatabaseError(MySQLErrorCodes(int(code)), msg)
+        else:
+            return DatabaseError(origin_error)
 
     def execute(self, operation, parameters=None):
         self._current_response, self._iterator, self._paging_state = None, None, None
@@ -226,7 +225,7 @@ class AuroraDataAPICursor:
         except self._client.exceptions.BadRequestException as e:
             if "Please paginate your query" in str(e):
                 self._start_paginated_query(execute_statement_args)
-            elif "Database response exceeded size limit" in str(e):
+            elif "Database returned more than the allowed response size limit" in str(e):
                 self._start_paginated_query(execute_statement_args, records_per_page=max(1, self.arraysize // 2))
             else:
                 raise self._get_database_error(e) from e
@@ -319,7 +318,8 @@ class AuroraDataAPICursor:
                 try:
                     page = self._client.execute_statement(**next_page_args)
                 except self._client.exceptions.BadRequestException as e:
-                    if "Database response exceeded size limit" in str(e) and self._paging_state["records_per_page"] > 1:
+                    cur_rpp = self._paging_state["records_per_page"]
+                    if "Database returned more than the allowed response size limit" in str(e) and cur_rpp > 1:
                         self.scroll(-self._paging_state["records_per_page"])  # Rewind the cursor to read the page again
                         logger.debug("Halving records per page")
                         self._paging_state["records_per_page"] //= 2
