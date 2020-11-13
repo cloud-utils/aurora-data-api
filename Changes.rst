@@ -1,3 +1,9 @@
+Changes for v0.2.6 (2020-11-13)
+===============================
+
+Update handling of error codes and response size error for latest Data
+API version
+
 Changes for v0.2.5 (2020-10-03)
 ===============================
 
