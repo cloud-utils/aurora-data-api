@@ -204,7 +204,6 @@ class AuroraDataAPICursor:
 
     def _get_database_error(self, origin_error):
         if getattr(origin_error, "response", {}).get("Error", {}).get("Message", "").startswith("Database error code"):
-            assert origin_error.response["Error"]["Message"].startswith("Database error code")
             code, msg = (s.split(": ", 1)[1] for s in origin_error.response["Error"]["Message"].split(". ", 1))
             return DatabaseError(MySQLErrorCodes(int(code)), msg)
         else:
