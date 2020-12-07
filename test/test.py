@@ -25,14 +25,19 @@ class TestAuroraDataAPI(unittest.TestCase):
                         id SERIAL,
                         name TEXT,
                         doc JSONB DEFAULT '{}',
-                        num NUMERIC (10, 5) DEFAULT 0.0
+                        num NUMERIC (10, 5) DEFAULT 0.0,
+                        ts TIMESTAMP WITHOUT TIME ZONE
                     )
                 """)
-                cur.executemany(
-                    "INSERT INTO aurora_data_api_test(name, doc, num) VALUES (:name, CAST(:doc AS JSONB), :num)", [{
+                cur.executemany("""
+                    INSERT INTO aurora_data_api_test(name, doc, num, ts)
+                    VALUES (:name, CAST(:doc AS JSONB), :num, CAST(:ts AS TIMESTAMP))
+                """, [
+                    {
                         "name": "row{}".format(i),
                         "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]}),
-                        "num": decimal.Decimal("%d.%d" % (i, i))
+                        "num": decimal.Decimal("%d.%d" % (i, i)),
+                        "ts": "2020-09-17 13:49:32.780180",
                     } for i in range(2048)]
                 )
             except aurora_data_api.DatabaseError as e:
@@ -77,7 +82,8 @@ class TestAuroraDataAPI(unittest.TestCase):
                 expect_row0 = (1,
                                'row0',
                                datetime.date(2000, 1, 1) if self.using_mysql else '{"x": 0, "y": "0", "z": [0, 0, 1]}',
-                               decimal.Decimal(0))
+                               decimal.Decimal(0),
+                               datetime.datetime(2020, 9, 17, 13, 49, 32, 780180))
                 i = 0
                 cursor.execute("select * from aurora_data_api_test")
                 for f in cursor:
@@ -93,7 +99,7 @@ class TestAuroraDataAPI(unittest.TestCase):
                 self.assertEqual(data[-1][1], 'row2047')
                 if not self.using_mysql:
                     self.assertEqual(json.loads(data[-1][2]), {"x": 2047, "y": str(2047), "z": [2047, 2047 * 2047, 0]})
-                self.assertEqual(data[-1][-1], decimal.Decimal("2047.2047"))
+                self.assertEqual(data[-1][-2], decimal.Decimal("2047.2047"))
                 self.assertEqual(len(data), 2048)
                 self.assertEqual(len(cursor.fetchall()), 0)
 
