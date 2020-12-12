@@ -1,3 +1,9 @@
+Changes for v0.2.7 (2020-12-12)
+===============================
+
+-  Catch ValueError when timestamp returns 5 decimal places instead of 6
+   (#22)
+
 Changes for v0.2.6 (2020-11-13)
 ===============================
 
