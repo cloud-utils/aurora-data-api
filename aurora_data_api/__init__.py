@@ -376,7 +376,7 @@ class AuroraDataAPICursor:
         self._current_response = None
 
 
-def connect(aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, database=None, host=None, port=None,
-            username=None, password=None, charset=None):
-    return AuroraDataAPIClient(dbname=database, aurora_cluster_arn=aurora_cluster_arn,
+def connect(aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, config=None, database=None,
+            host=None, port=None, username=None, password=None, charset=None):
+    return AuroraDataAPIClient(dbname=database, aurora_cluster_arn=aurora_cluster_arn, config=config,
                                secret_arn=secret_arn, rds_data_client=rds_data_client, charset=charset)
