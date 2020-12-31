@@ -36,10 +36,11 @@ logger = logging.getLogger(__name__)
 
 
 class AuroraDataAPIClient:
-    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None):
+    def __init__(self, config=None, dbname=None, aurora_cluster_arn=None, secret_arn=None,
+                 rds_data_client=None, charset=None):
         self._client = rds_data_client
         if rds_data_client is None:
-            self._client = boto3.client("rds-data")
+            self._client = boto3.client("rds-data", config=config)
         self._dbname = dbname
         self._aurora_cluster_arn = aurora_cluster_arn or os.environ.get("AURORA_CLUSTER_ARN")
         self._secret_arn = secret_arn or os.environ.get("AURORA_SECRET_ARN")
