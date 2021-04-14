@@ -1,7 +1,7 @@
 """
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
-import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib
+import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib, json
 from decimal import Decimal
 from collections import namedtuple
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
@@ -110,7 +110,7 @@ class AuroraDataAPICursor:
         "cidr": ipaddress.ip_network,
         "date": datetime.date,
         "inet": ipaddress.ip_address,
-        "json": dict,  # TODO
+        "json": "json",
         "jsonb": dict,  # TODO
         "money": str,  # TODO
         "text": str,
@@ -133,7 +133,8 @@ class AuroraDataAPICursor:
         datetime.date: "DATE",
         datetime.time: "TIME",
         datetime.datetime: "TIMESTAMP",
-        Decimal: "DECIMAL"
+        Decimal: "DECIMAL",
+        "json": "JSON"
     }
 
     def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None):
@@ -281,6 +282,8 @@ class AuroraDataAPICursor:
             if col_desc and col_desc.type_code in self._data_api_type_hint_map:
                 if col_desc.type_code == Decimal:
                     scalar_value = Decimal(scalar_value)
+                elif col_desc.type_code == "json":
+                    scalar_value = json.loads(scalar_value)
                 else:
                     try:
                         scalar_value = col_desc.type_code.fromisoformat(scalar_value)
