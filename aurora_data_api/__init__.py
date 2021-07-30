@@ -28,6 +28,7 @@ NUMBER = float
 DATETIME = datetime.datetime
 ROWID = str
 DECIMAL = Decimal
+UUID = uuid.UUID
 
 ColumnDescription = namedtuple("ColumnDescription", "name type_code display_size internal_size precision scale null_ok")
 ColumnDescription.__new__.__defaults__ = (None,) * len(ColumnDescription._fields)
@@ -133,7 +134,8 @@ class AuroraDataAPICursor:
         datetime.date: "DATE",
         datetime.time: "TIME",
         datetime.datetime: "TIMESTAMP",
-        Decimal: "DECIMAL"
+        Decimal: "DECIMAL",
+        UUID: "UUID"
     }
 
     def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None):
