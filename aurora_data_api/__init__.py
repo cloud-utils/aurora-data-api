@@ -36,10 +36,12 @@ logger = logging.getLogger(__name__)
 
 
 class AuroraDataAPIClient:
-    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None):
+    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, username=None,
+                 password=None, region_name=None, charset=None):
         self._client = rds_data_client
         if rds_data_client is None:
-            self._client = boto3.client("rds-data")
+            self._client = boto3.client("rds-data", aws_access_key_id=username, aws_secret_access_key=password,
+                                        region_name=region_name)
         self._dbname = dbname
         self._aurora_cluster_arn = aurora_cluster_arn or os.environ.get("AURORA_CLUSTER_ARN")
         self._secret_arn = secret_arn or os.environ.get("AURORA_SECRET_ARN")
@@ -376,6 +378,8 @@ class AuroraDataAPICursor:
 
 
 def connect(aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, database=None, host=None, port=None,
-            username=None, password=None, charset=None):
+            username=None, password=None, region_name=None, charset=None):
     return AuroraDataAPIClient(dbname=database, aurora_cluster_arn=aurora_cluster_arn,
-                               secret_arn=secret_arn, rds_data_client=rds_data_client, charset=charset)
+                               secret_arn=secret_arn, rds_data_client=rds_data_client,
+                               username=username, password=password, region_name=region_name,
+                               charset=charset)
