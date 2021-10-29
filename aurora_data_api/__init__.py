@@ -1,7 +1,8 @@
 """
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
-import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib, json
+import os, datetime, ipaddress, time, random, string, logging, itertools, reprlib, json
+from uuid import UUID
 from decimal import Decimal
 from collections import namedtuple
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
@@ -36,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 class AuroraDataAPIClient:
-    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None):
+    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None, continue_after_timeout=None):
         self._client = rds_data_client
         if rds_data_client is None:
             self._client = boto3.client("rds-data")
@@ -45,6 +46,7 @@ class AuroraDataAPIClient:
         self._secret_arn = secret_arn or os.environ.get("AURORA_SECRET_ARN")
         self._charset = charset
         self._transaction_id = None
+        self._continue_after_timeout = continue_after_timeout
 
     def close(self):
         pass
@@ -76,7 +78,8 @@ class AuroraDataAPIClient:
                                      dbname=self._dbname,
                                      aurora_cluster_arn=self._aurora_cluster_arn,
                                      secret_arn=self._secret_arn,
-                                     transaction_id=self._transaction_id)
+                                     transaction_id=self._transaction_id,
+                                     continue_after_timeout=self._continue_after_timeout)
         if self._charset:
             cursor.execute("SET character_set_client = '{}'".format(self._charset))
         return cursor
@@ -116,7 +119,7 @@ class AuroraDataAPICursor:
         "text": str,
         "time": datetime.time,
         "timestamp": datetime.datetime,
-        "uuid": uuid.uuid4,
+        "uuid": UUID,
         "numeric": Decimal,
         "decimal": Decimal
     }
@@ -134,10 +137,11 @@ class AuroraDataAPICursor:
         datetime.time: "TIME",
         datetime.datetime: "TIMESTAMP",
         Decimal: "DECIMAL",
-        "json": "JSON"
+        "json": "JSON",
+        UUID: "UUID"
     }
 
-    def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None):
+    def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None, continue_after_timeout=None):
         self.arraysize = 1000
         self.description = None
         self._client = client
@@ -148,6 +152,7 @@ class AuroraDataAPICursor:
         self._current_response = None
         self._iterator = None
         self._paging_state = None
+        self._continue_after_timeout = continue_after_timeout
 
     def prepare_param(self, param_name, param_value):
         if param_value is None:
@@ -198,6 +203,8 @@ class AuroraDataAPICursor:
                             sql=operation)
         if self._transaction_id:
             execute_args["transactionId"] = self._transaction_id
+        if self._continue_after_timeout is not None:
+            execute_args["continueAfterTimeout"] = self._continue_after_timeout
         return execute_args
 
     def _format_parameter_set(self, parameters):
@@ -284,6 +291,8 @@ class AuroraDataAPICursor:
                     scalar_value = Decimal(scalar_value)
                 elif col_desc.type_code == "json":
                     scalar_value = json.loads(scalar_value)
+                elif col_desc.type_code == UUID:
+                    scalar_value = UUID(scalar_value)
                 else:
                     try:
                         scalar_value = col_desc.type_code.fromisoformat(scalar_value)
@@ -379,6 +388,7 @@ class AuroraDataAPICursor:
 
 
 def connect(aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, database=None, host=None, port=None,
-            username=None, password=None, charset=None):
+            username=None, password=None, charset=None, continue_after_timeout=None):
     return AuroraDataAPIClient(dbname=database, aurora_cluster_arn=aurora_cluster_arn,
-                               secret_arn=secret_arn, rds_data_client=rds_data_client, charset=charset)
+                               secret_arn=secret_arn, rds_data_client=rds_data_client, charset=charset,
+                               continue_after_timeout=continue_after_timeout)

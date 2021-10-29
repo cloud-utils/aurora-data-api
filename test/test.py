@@ -158,6 +158,33 @@ class TestAuroraDataAPI(unittest.TestCase):
             cur.execute("DELETE FROM aurora_data_api_test WHERE name like 'rowcount%'")
             self.assertEqual(cur.rowcount, 8)
 
+    def test_continue_after_timeout(self):
+        if os.environ.get("TEST_CONTINUE_AFTER_TIMEOUT", "False") != "True":
+            self.skipTest("TEST_CONTINUE_AFTER_TIMEOUT env var is not 'True'")
+        
+        if self.using_mysql:
+            self.skipTest("Not implemented for MySQL")
+
+        try:
+            with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+                with self.assertRaisesRegex(conn._client.exceptions.ClientError, "StatementTimeoutException"):
+                    cur.execute("INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout' FROM (SELECT pg_sleep(50)) q")
+                with self.assertRaisesRegex(aurora_data_api.DatabaseError, "current transaction is aborted"):
+                    cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
+
+            with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
+                self.assertEqual(cur.fetchone(), (0,))
+                
+            with aurora_data_api.connect(database=self.db_name, continue_after_timeout=True) as conn, conn.cursor() as cur:
+                with self.assertRaisesRegex(conn._client.exceptions.ClientError, "StatementTimeoutException"):
+                    cur.execute("INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout' FROM (SELECT pg_sleep(50)) q")
+                cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
+                self.assertEqual(cur.fetchone(), (1,))
+        finally:
+            with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+                cur.execute("DELETE FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
+
 
 if __name__ == "__main__":
     unittest.main()
