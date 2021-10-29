@@ -1,7 +1,8 @@
 """
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
-import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib
+import os, datetime, ipaddress, time, random, string, logging, itertools, reprlib
+from uuid import UUID
 from decimal import Decimal
 from collections import namedtuple
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
@@ -116,7 +117,7 @@ class AuroraDataAPICursor:
         "text": str,
         "time": datetime.time,
         "timestamp": datetime.datetime,
-        "uuid": uuid.uuid4,
+        "uuid": UUID,
         "numeric": Decimal,
         "decimal": Decimal
     }
@@ -133,7 +134,8 @@ class AuroraDataAPICursor:
         datetime.date: "DATE",
         datetime.time: "TIME",
         datetime.datetime: "TIMESTAMP",
-        Decimal: "DECIMAL"
+        Decimal: "DECIMAL",
+        UUID: "UUID"
     }
 
     def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None):
@@ -281,6 +283,8 @@ class AuroraDataAPICursor:
             if col_desc and col_desc.type_code in self._data_api_type_hint_map:
                 if col_desc.type_code == Decimal:
                     scalar_value = Decimal(scalar_value)
+                elif col_desc.type_code == UUID:
+                    scalar_value = UUID(scalar_value)
                 else:
                     try:
                         scalar_value = col_desc.type_code.fromisoformat(scalar_value)
