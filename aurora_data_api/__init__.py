@@ -1,7 +1,7 @@
 """
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
-import os, datetime, ipaddress, time, random, string, logging, itertools, reprlib
+import os, datetime, ipaddress, time, random, string, logging, itertools, reprlib, json
 from uuid import UUID
 from decimal import Decimal
 from collections import namedtuple
@@ -113,7 +113,7 @@ class AuroraDataAPICursor:
         "cidr": ipaddress.ip_network,
         "date": datetime.date,
         "inet": ipaddress.ip_address,
-        "json": dict,  # TODO
+        "json": "json",
         "jsonb": dict,  # TODO
         "money": str,  # TODO
         "text": str,
@@ -137,6 +137,7 @@ class AuroraDataAPICursor:
         datetime.time: "TIME",
         datetime.datetime: "TIMESTAMP",
         Decimal: "DECIMAL",
+        "json": "JSON",
         UUID: "UUID"
     }
 
@@ -288,6 +289,8 @@ class AuroraDataAPICursor:
             if col_desc and col_desc.type_code in self._data_api_type_hint_map:
                 if col_desc.type_code == Decimal:
                     scalar_value = Decimal(scalar_value)
+                elif col_desc.type_code == "json":
+                    scalar_value = json.loads(scalar_value)
                 elif col_desc.type_code == UUID:
                     scalar_value = UUID(scalar_value)
                 else:
