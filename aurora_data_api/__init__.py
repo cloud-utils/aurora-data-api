@@ -1,13 +1,14 @@
 """
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
-import os, datetime, ipaddress, time, random, string, logging, itertools, reprlib, json
+import os, datetime, ipaddress, time, random, string, logging, itertools, reprlib, json, re
 from uuid import UUID
 from decimal import Decimal
 from collections import namedtuple
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
                          InternalError, ProgrammingError, NotSupportedError)
 from .mysql_error_codes import MySQLErrorCodes
+from .postgresql_error_codes import PostgreSQLErrorCodes
 import boto3
 
 apilevel = "2.0"
@@ -35,6 +36,7 @@ ColumnDescription.__new__.__defaults__ = (None,) * len(ColumnDescription._fields
 
 logger = logging.getLogger(__name__)
 
+postgresql_error_reg = re.compile(r'^ERROR: (.*)[\s+]+Position: ([0-9]+); SQLState: ([0-9A-Z]+)$')
 
 class AuroraDataAPIClient:
     def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None, continue_after_timeout=None):
@@ -211,9 +213,18 @@ class AuroraDataAPICursor:
         return [self.prepare_param(k, v) for k, v in parameters.items()]
 
     def _get_database_error(self, origin_error):
-        if getattr(origin_error, "response", {}).get("Error", {}).get("Message", "").startswith("Database error code"):
-            code, msg = (s.split(": ", 1)[1] for s in origin_error.response["Error"]["Message"].split(". ", 1))
+        error_msg = getattr(origin_error, "response", {}).get("Error", {}).get("Message", "")
+
+        # MySql error
+        if error_msg.startswith("Database error code"):
+            code, msg = (s.split(": ", 1)[1] for s in error_msg.split(". ", 1))
             return DatabaseError(MySQLErrorCodes(int(code)), msg)
+        
+        # Postgresql error
+        elif error_msg.startswith("ERROR"):
+            msg, pos, code = postgresql_error_reg.match(error_msg).groups()
+            return DatabaseError(PostgreSQLErrorCodes(code), msg, pos)
+            
         else:
             return DatabaseError(origin_error)
 
