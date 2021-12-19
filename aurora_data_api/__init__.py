@@ -38,8 +38,10 @@ logger = logging.getLogger(__name__)
 
 postgresql_error_reg = re.compile(r'^ERROR: (.*)[\s+]+Position: ([0-9]+); SQLState: ([0-9A-Z]+)$')
 
+
 class AuroraDataAPIClient:
-    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None, continue_after_timeout=None):
+    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None,
+                 continue_after_timeout=None):
         self._client = rds_data_client
         if rds_data_client is None:
             self._client = boto3.client("rds-data")
@@ -143,7 +145,8 @@ class AuroraDataAPICursor:
         UUID: "UUID"
     }
 
-    def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None, continue_after_timeout=None):
+    def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None,
+                 continue_after_timeout=None):
         self.arraysize = 1000
         self.description = None
         self._client = client
@@ -205,8 +208,6 @@ class AuroraDataAPICursor:
                             sql=operation)
         if self._transaction_id:
             execute_args["transactionId"] = self._transaction_id
-        if self._continue_after_timeout is not None:
-            execute_args["continueAfterTimeout"] = self._continue_after_timeout
         return execute_args
 
     def _format_parameter_set(self, parameters):
