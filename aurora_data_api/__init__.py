@@ -215,24 +215,23 @@ class AuroraDataAPICursor:
 
     def _get_database_error(self, origin_error):
         error_msg = getattr(origin_error, "response", {}).get("Error", {}).get("Message", "")
-
-        # MySql error
-        if error_msg.startswith("Database error code"):
-            code, msg = (s.split(": ", 1)[1] for s in error_msg.split(". ", 1))
-            return DatabaseError(MySQLErrorCodes(int(code)), msg)
-        
-        # Postgresql error
-        elif error_msg.startswith("ERROR"):
-            msg, pos, code = postgresql_error_reg.match(error_msg).groups()
-            return DatabaseError(PostgreSQLErrorCodes(code), msg, pos)
-            
-        else:
-            return DatabaseError(origin_error)
+        try:
+            if error_msg.startswith("Database error code"):  # MySQL error
+                code, msg = (s.split(": ", 1)[1] for s in error_msg.split(". ", 1))
+                return DatabaseError(MySQLErrorCodes(int(code)), msg)
+            elif error_msg.startswith("ERROR: "):  # Postgresql error
+                msg, pos, code = postgresql_error_reg.match(error_msg).groups()
+                return DatabaseError(PostgreSQLErrorCodes(code), msg, pos)
+        except Exception:
+            pass
+        return DatabaseError(origin_error)
 
     def execute(self, operation, parameters=None):
         self._current_response, self._iterator, self._paging_state = None, None, None
         execute_statement_args = dict(self._prepare_execute_args(operation),
                                       includeResultMetadata=True)
+        if self._continue_after_timeout is not None:
+            execute_statement_args["continueAfterTimeout"] = self._continue_after_timeout
         if parameters:
             execute_statement_args["parameters"] = self._format_parameter_set(parameters)
         logger.debug("execute %s", reprlib.repr(operation.strip()))

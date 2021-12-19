@@ -118,6 +118,8 @@ class TestAuroraDataAPI(unittest.TestCase):
                         break
                     self.assertIn(len(fm), [1001, 46])
 
+    @unittest.skip("This test now fails because the API was changed to terminate and delete the transaction when the "
+                   "data returned by the statement exceeds the limit, making automated recovery impossible.")
     def test_pagination_backoff(self):
         if self.using_mysql:
             return
@@ -161,24 +163,27 @@ class TestAuroraDataAPI(unittest.TestCase):
     def test_continue_after_timeout(self):
         if os.environ.get("TEST_CONTINUE_AFTER_TIMEOUT", "False") != "True":
             self.skipTest("TEST_CONTINUE_AFTER_TIMEOUT env var is not 'True'")
-        
+
         if self.using_mysql:
             self.skipTest("Not implemented for MySQL")
 
         try:
             with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
                 with self.assertRaisesRegex(conn._client.exceptions.ClientError, "StatementTimeoutException"):
-                    cur.execute("INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout' FROM (SELECT pg_sleep(50)) q")
+                    cur.execute(("INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout'"
+                                 "FROM (SELECT pg_sleep(50)) q"))
                 with self.assertRaisesRegex(aurora_data_api.DatabaseError, "current transaction is aborted"):
                     cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
 
             with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
                 self.assertEqual(cur.fetchone(), (0,))
-                
-            with aurora_data_api.connect(database=self.db_name, continue_after_timeout=True) as conn, conn.cursor() as cur:
+
+            with aurora_data_api.connect(database=self.db_name,
+                                         continue_after_timeout=True) as conn, conn.cursor() as cur:
                 with self.assertRaisesRegex(conn._client.exceptions.ClientError, "StatementTimeoutException"):
-                    cur.execute("INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout' FROM (SELECT pg_sleep(50)) q")
+                    cur.execute(("INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout' "
+                                 "FROM (SELECT pg_sleep(50)) q"))
                 cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
                 self.assertEqual(cur.fetchone(), (1,))
         finally:
