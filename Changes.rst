@@ -1,3 +1,14 @@
+Changes for v0.3.0 (2021-12-25)
+===============================
+
+-  Added pgsql error codes (#38)
+
+-  Support json column types (#28)
+
+-  Support the continueAfterTimeout parameter (#30)
+
+-  Handle UUID type hint (#32)
+
 Changes for v0.2.7 (2020-12-12)
 ===============================
 
