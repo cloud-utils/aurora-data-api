@@ -36,7 +36,7 @@ ColumnDescription.__new__.__defaults__ = (None,) * len(ColumnDescription._fields
 
 logger = logging.getLogger(__name__)
 
-postgresql_error_reg = re.compile(r'^ERROR: (.*)(?:[\s+]+Position: ([0-9]+); )?SQLState: ([0-9A-Z]+)$')
+postgresql_error_reg = re.compile(r'^ERROR:\s(.*)\s(?:[\s+]+Position:\s([0-9]+);\s)?SQLState:\s([0-9A-Z]+)$')
 
 
 class AuroraDataAPIClient:
@@ -220,7 +220,7 @@ class AuroraDataAPICursor:
                 code, msg = (s.split(": ", 1)[1] for s in error_msg.split(". ", 1))
                 return DatabaseError(MySQLErrorCodes(int(code)), msg)
             elif error_msg.startswith("ERROR: "):  # Postgresql error
-                msg, pos, code = postgresql_error_reg.match(error_msg).groups()
+                msg, pos, code = postgresql_error_reg.match(error_msg.replace('\n', '')).groups()
                 return DatabaseError(PostgreSQLErrorCodes(code), msg, pos)
         except Exception:
             pass
