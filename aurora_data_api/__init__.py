@@ -36,7 +36,7 @@ ColumnDescription.__new__.__defaults__ = (None,) * len(ColumnDescription._fields
 
 logger = logging.getLogger(__name__)
 
-postgresql_error_reg = re.compile(r'^ERROR: (.*)[\s+]+Position: ([0-9]+); SQLState: ([0-9A-Z]+)$')
+postgresql_error_reg = re.compile(r'^ERROR: (.*)(?:[\s+]+Position: ([0-9]+); )?SQLState: ([0-9A-Z]+)$')
 
 
 class AuroraDataAPIClient:
