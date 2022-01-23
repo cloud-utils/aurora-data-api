@@ -8,7 +8,7 @@ setup(
     url='https://github.com/chanzuckerberg/aurora-data-api',
     license='Apache Software License',
     author='Andrey Kislyuk',
-    author_email='akislyuk@chanzuckerberg.com',
+    author_email='kislyuk@gmail.com',
     description='A Python DB-API 2.0 client for the AWS Aurora Serverless Data API',
     long_description=open('README.rst').read(),
     install_requires=[
