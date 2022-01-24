@@ -36,8 +36,6 @@ ColumnDescription.__new__.__defaults__ = (None,) * len(ColumnDescription._fields
 
 logger = logging.getLogger(__name__)
 
-postgresql_error_reg = re.compile(r'^ERROR:\s(.*)\s(?:[\s+]+Position:\s([0-9]+);\s)?SQLState:\s([0-9A-Z]+)$')
-
 
 class AuroraDataAPIClient:
     def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None,
@@ -212,18 +210,24 @@ class AuroraDataAPICursor:
     def _format_parameter_set(self, parameters):
         return [self.prepare_param(k, v) for k, v in parameters.items()]
 
-    def _get_database_error(self, origin_error):
-        error_msg = getattr(origin_error, "response", {}).get("Error", {}).get("Message", "")
+    def _get_database_error(self, original_error):
+        error_msg = getattr(original_error, "response", {}).get("Error", {}).get("Message", "")
         try:
             if error_msg.startswith("Database error code"):  # MySQL error
                 code, msg = (s.split(": ", 1)[1] for s in error_msg.split(". ", 1))
-                return DatabaseError(MySQLErrorCodes(int(code)), msg)
-            elif error_msg.startswith("ERROR: "):  # Postgresql error
-                msg, pos, code = postgresql_error_reg.match(error_msg.replace('\n', '')).groups()
-                return DatabaseError(PostgreSQLErrorCodes(code), msg, pos)
+                mysql_error_code = MySQLErrorCodes(int(code))
+                return DatabaseError(mysql_error_code, msg)
+            elif error_msg.startswith("ERROR: "):  # PostgreSQL error
+                error_msg = error_msg[len("ERROR: "):]
+                error_lines = error_msg.splitlines()
+                if error_lines[-1].startswith("  Position: ") and " SQLState: " in error_lines[-1]:
+                    position, sqlstate = (i.split(":", 1)[1].strip() for i in error_lines[-1].strip().split(";"))
+                    postgres_error_code = PostgreSQLErrorCodes(sqlstate)
+                    return DatabaseError(postgres_error_code, "\n".join(error_lines[:-1]), int(position))
+                raise Exception("unable to parse postgresql error")
         except Exception:
             pass
-        return DatabaseError(origin_error)
+        return DatabaseError(original_error)
 
     def execute(self, operation, parameters=None):
         self._current_response, self._iterator, self._paging_state = None, None, None

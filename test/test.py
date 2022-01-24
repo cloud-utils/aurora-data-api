@@ -1,9 +1,10 @@
-import os, sys, json, unittest, logging, uuid, decimal, datetime
+import os, sys, json, unittest, logging, uuid, decimal, datetime, time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import aurora_data_api  # noqa
 from aurora_data_api.mysql_error_codes import MySQLErrorCodes  # noqa
+from aurora_data_api.postgresql_error_codes import PostgreSQLErrorCodes  # noqa
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("aurora_data_api").setLevel(logging.DEBUG)
@@ -135,6 +136,18 @@ class TestAuroraDataAPI(unittest.TestCase):
             with self.assertRaisesRegex(conn._client.exceptions.BadRequestException,
                                         "Database response exceeded size limit"):
                 cur.fetchall()
+
+    def test_postgres_exceptions(self):
+        if self.using_mysql:
+            return
+        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+            table = "aurora_data_api_nonexistent_test_table"
+            with self.assertRaises(aurora_data_api.DatabaseError) as e:
+                sql = f"select * from {table}"
+                cur.execute(sql)
+            self.assertEqual(e.exception.args, (PostgreSQLErrorCodes.ER_UNDEF_TABLE,
+                                                f'relation "{table}" does not exist',
+                                                15))
 
     def test_rowcount(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
