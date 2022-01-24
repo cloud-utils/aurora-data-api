@@ -1,3 +1,8 @@
+Changes for v0.3.2 (2022-01-23)
+===============================
+
+-  Use a more robust postgresql error parser; add test
+
 Changes for v0.3.1 (2022-01-23)
 ===============================
 
