@@ -1,7 +1,7 @@
 """
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
-import os, datetime, ipaddress, time, random, string, logging, itertools, reprlib, json, re
+import os, datetime, ipaddress, threading, time, random, string, logging, itertools, reprlib, json, re
 from uuid import UUID
 from decimal import Decimal
 from collections import namedtuple
@@ -36,13 +36,24 @@ ColumnDescription.__new__.__defaults__ = (None,) * len(ColumnDescription._fields
 
 logger = logging.getLogger(__name__)
 
+_BOTO_CLIENT_LOCK = threading.Lock()
+_RDS_DATA_CLIENT = None
+
+
+def _get_boto3_rds_data_client():
+    global _RDS_DATA_CLIENT
+    with _BOTO_CLIENT_LOCK:
+        if not _RDS_DATA_CLIENT:
+            _RDS_DATA_CLIENT = boto3.client("rds-data")
+    return _RDS_DATA_CLIENT
+
 
 class AuroraDataAPIClient:
     def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None,
                  continue_after_timeout=None):
         self._client = rds_data_client
         if rds_data_client is None:
-            self._client = boto3.client("rds-data")
+            self._client = _get_boto3_rds_data_client()
         self._dbname = dbname
         self._aurora_cluster_arn = aurora_cluster_arn or os.environ.get("AURORA_CLUSTER_ARN")
         self._secret_arn = secret_arn or os.environ.get("AURORA_SECRET_ARN")
