@@ -5,6 +5,7 @@ import os, datetime, ipaddress, time, random, string, logging, itertools, reprli
 from uuid import UUID
 from decimal import Decimal
 from collections import namedtuple
+from collections.abc import Mapping
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
                          InternalError, ProgrammingError, NotSupportedError)
 from .mysql_error_codes import MySQLErrorCodes
@@ -211,6 +212,8 @@ class AuroraDataAPICursor:
         return execute_args
 
     def _format_parameter_set(self, parameters):
+        if not isinstance(parameters, Mapping):
+            raise NotSupportedError("Expected a mapping of parameters. Array parameters are not supported.")
         return [self.prepare_param(k, v) for k, v in parameters.items()]
 
     def _get_database_error(self, original_error):
