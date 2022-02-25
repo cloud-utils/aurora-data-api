@@ -88,7 +88,6 @@ SQL over HTTP, which has advantages in the context of AWS Lambda:
 Links
 -----
 * `Project home page (GitHub) <https://github.com/chanzuckerberg/aurora-data-api>`_
-* `Documentation (Read the Docs) <https://aurora-data-api.readthedocs.io/en/latest/>`_
 * `Package distribution (PyPI) <https://pypi.python.org/pypi/aurora-data-api>`_
 * `Change log <https://github.com/chanzuckerberg/aurora-data-api/blob/master/Changes.rst>`_
 * `sqlalchemy-aurora-data-api <https://github.com/chanzuckerberg/sqlalchemy-aurora-data-api>`_, a SQLAlchemy dialect
@@ -110,5 +109,3 @@ Licensed under the terms of the `Apache License, Version 2.0 <http://www.apache.
         :target: https://pypi.python.org/pypi/aurora-data-api
 .. image:: https://img.shields.io/pypi/l/aurora-data-api.svg
         :target: https://pypi.python.org/pypi/aurora-data-api
-.. image:: https://readthedocs.org/projects/aurora-data-api/badge/?version=latest
-        :target: https://aurora-data-api.readthedocs.org/
