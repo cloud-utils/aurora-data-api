@@ -1,3 +1,16 @@
+Changes for v0.4.0 (2022-02-27)
+===============================
+
+-  Revert #32. Neither JSON nor UUIDs are appropriate for native type
+   casting in this driver, because such behavior is inconsistent with
+   other DB-API drivers.
+
+-  Use typed exceptions
+
+-  Raise legible error when passing array params. Closes #45
+
+-  Guard client init with lock. Fixes #43
+
 Changes for v0.3.2 (2022-01-23)
 ===============================
 
