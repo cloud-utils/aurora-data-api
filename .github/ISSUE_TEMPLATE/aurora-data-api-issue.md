@@ -7,6 +7,8 @@ assignees: ''
 
 ---
 
+<!--
+
 Thank you for your interest in aurora-data-api. If you want to report an issue or make a feature request, you are in the right place. Please keep the following in mind:
 
 - This project is staffed by volunteers who work on it in their spare time. Please respect the volunteers' time and effort by being courteous and kind.
@@ -16,4 +18,6 @@ Thank you for your interest in aurora-data-api. If you want to report an issue o
 - If you wish to make a feature request, please note that the maintainers' time is limited and you are invited to submit a pull request instead. Pull requests are expected to provide clean code, unit tests that cover the code and assert on the newly expected behavior, and documentation.
 - If you are opening a pull request, it is your responsibility to run the full test suite on an RDS instance under your control, to confirm that the test suite passes with the proposed changes, and to post the full test output log. Unfortunately, because of the overhead associated with running a test RDS instance, this project does not currently have a CI pipeline capable of automating this step.
 
-Thank you for contributing.
+Thank you for contributing. You can delete this text to edit your issue content.
+
+-->
