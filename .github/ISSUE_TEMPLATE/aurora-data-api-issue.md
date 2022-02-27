@@ -11,7 +11,7 @@ assignees: ''
 
 Thank you for your interest in aurora-data-api. If you want to report an issue or make a feature request, you are in the right place. Please keep the following in mind:
 
-- This project is staffed by volunteers who work on it in their spare time. Please respect the volunteers' time and effort by being courteous and kind.
+- This project is staffed by volunteers who work on it in their spare time. Please respect the volunteers' time and effort by being courteous and kind. Users who abuse the goodwill of the volunteers will be removed from the project and barred from making further comments.
 - This project provides an interface between open-source community-maintained software and commercial software. If your commercial enterprise requires the use of this software, the volunteers who maintain it are under no obligation to provide support to you; and moreover, it is your enterprise's moral obligation to support the maintainers. You can do so via the GitHub "Sponsor" button located at the top and bottom of GitHub's pages for this project.
 - If you want general technical help, please ensure you have read and understood the documentation for the software this project builds upon. Issues that don't confirm that effort was taken to check the relevant documentation will be closed.
 - If you wish to report a bug, please provide a single script that yields a complete standalone reproduction of the observed behavior, together with an explanation of the expected behavior and any citations that may be needed to support the expectation. Issues that don't provide this information will be closed.
