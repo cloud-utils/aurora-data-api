@@ -41,19 +41,19 @@ class TestAuroraDataAPI(unittest.TestCase):
                         "ts": "2020-09-17 13:49:32.780180",
                     } for i in range(2048)]
                 )
-            except aurora_data_api.DatabaseError as e:
-                if e.args[0] != MySQLErrorCodes.ER_PARSE_ERROR:
-                    raise
+            except aurora_data_api.MySQLError.ER_PARSE_ERROR:
                 cls.using_mysql = True
                 cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
-                cur.execute(
-                    "CREATE TABLE aurora_data_api_test (id SERIAL, name TEXT, birthday DATE, num NUMERIC(10, 5))"
-                )
+                cur.execute("CREATE TABLE aurora_data_api_test "
+                            "(id SERIAL, name TEXT, birthday DATE, num NUMERIC(10, 5), ts TIMESTAMP)")
                 cur.executemany(
-                    "INSERT INTO aurora_data_api_test(name, birthday, num) VALUES (:name, :birthday, :num)", [{
+                    ("INSERT INTO aurora_data_api_test(name, birthday, num, ts) VALUES "
+                     "(:name, :birthday, :num, CAST(:ts AS DATETIME))"),
+                    [{
                         "name": "row{}".format(i),
                         "birthday": "2000-01-01",
-                        "num": decimal.Decimal("%d.%d" % (i, i))
+                        "num": decimal.Decimal("%d.%d" % (i, i)),
+                        "ts": "2020-09-17 13:49:32.780180",
                     } for i in range(2048)]
                 )
 
@@ -64,7 +64,8 @@ class TestAuroraDataAPI(unittest.TestCase):
 
     def test_invalid_statements(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
-            with self.assertRaisesRegex(aurora_data_api.DatabaseError, "syntax"):
+            with self.assertRaises((aurora_data_api.exceptions.PostgreSQLError.ER_SYNTAX_ERR,
+                                    aurora_data_api.MySQLError.ER_PARSE_ERROR)):
                 cur.execute("selec * from table")
 
     def test_iterators(self):
@@ -83,8 +84,10 @@ class TestAuroraDataAPI(unittest.TestCase):
                 expect_row0 = (1,
                                'row0',
                                datetime.date(2000, 1, 1) if self.using_mysql else '{"x": 0, "y": "0", "z": [0, 0, 1]}',
-                               decimal.Decimal(0),
-                               datetime.datetime(2020, 9, 17, 13, 49, 32, 780180))
+                               decimal.Decimal(0.0),
+                               datetime.datetime(2020, 9, 17, 13, 49, 33)
+                               if self.using_mysql
+                               else datetime.datetime(2020, 9, 17, 13, 49, 32, 780180))
                 i = 0
                 cursor.execute("select * from aurora_data_api_test")
                 for f in cursor:
@@ -142,12 +145,11 @@ class TestAuroraDataAPI(unittest.TestCase):
             return
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
             table = "aurora_data_api_nonexistent_test_table"
-            with self.assertRaises(aurora_data_api.DatabaseError) as e:
+            with self.assertRaises(aurora_data_api.exceptions.PostgreSQLError.ER_UNDEF_TABLE) as e:
                 sql = f"select * from {table}"
                 cur.execute(sql)
-            self.assertEqual(e.exception.args, (PostgreSQLErrorCodes.ER_UNDEF_TABLE,
-                                                f'relation "{table}" does not exist',
-                                                15))
+            self.assertTrue(f'relation "{table}" does not exist' in str(e.exception))
+            self.assertTrue(isinstance(e.exception.response, dict))
 
     def test_rowcount(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:

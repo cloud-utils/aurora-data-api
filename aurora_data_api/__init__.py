@@ -7,7 +7,7 @@ from decimal import Decimal
 from collections import namedtuple
 from collections.abc import Mapping
 from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
-                         InternalError, ProgrammingError, NotSupportedError)
+                         InternalError, ProgrammingError, NotSupportedError, MySQLError, PostgreSQLError)
 from .mysql_error_codes import MySQLErrorCodes
 from .postgresql_error_codes import PostgreSQLErrorCodes
 import boto3
@@ -219,18 +219,20 @@ class AuroraDataAPICursor:
     def _get_database_error(self, original_error):
         error_msg = getattr(original_error, "response", {}).get("Error", {}).get("Message", "")
         try:
-            if error_msg.startswith("Database error code"):  # MySQL error
-                code, msg = (s.split(": ", 1)[1] for s in error_msg.split(". ", 1))
-                mysql_error_code = MySQLErrorCodes(int(code))
-                return DatabaseError(mysql_error_code, msg)
-            elif error_msg.startswith("ERROR: "):  # PostgreSQL error
-                error_msg = error_msg[len("ERROR: "):]
-                error_lines = error_msg.splitlines()
-                if error_lines[-1].startswith("  Position: ") and " SQLState: " in error_lines[-1]:
-                    position, sqlstate = (i.split(":", 1)[1].strip() for i in error_lines[-1].strip().split(";"))
-                    postgres_error_code = PostgreSQLErrorCodes(sqlstate)
-                    return DatabaseError(postgres_error_code, "\n".join(error_lines[:-1]), int(position))
-                raise Exception("unable to parse postgresql error")
+            res = re.search(r"Error code: (\d+); SQLState: (\d+)$", error_msg)
+            if res:  # MySQL error
+                error_code = int(res.group(1))
+                error_class = MySQLError.from_code(error_code)
+                error = error_class(error_msg)
+                error.response = getattr(original_error, "response", {})
+                return error
+            res = re.search(r"ERROR: .*\n  Position: (\d+); SQLState: (\w+)$", error_msg)
+            if res:  # PostgreSQL error
+                error_code = res.group(2)
+                error_class = PostgreSQLError.from_code(error_code)
+                error = error_class(error_msg)
+                error.response = getattr(original_error, "response", {})
+                return error
         except Exception:
             pass
         return DatabaseError(original_error)
