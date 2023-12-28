@@ -5,8 +5,20 @@ import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, 
 from decimal import Decimal
 from collections import namedtuple
 from collections.abc import Mapping
-from .exceptions import (Warning, Error, InterfaceError, DatabaseError, DataError, OperationalError, IntegrityError,
-                         InternalError, ProgrammingError, NotSupportedError, MySQLError, PostgreSQLError)
+from .exceptions import (
+    Warning,
+    Error,
+    InterfaceError,
+    DatabaseError,
+    DataError,
+    OperationalError,
+    IntegrityError,
+    InternalError,
+    ProgrammingError,
+    NotSupportedError,
+    MySQLError,
+    PostgreSQLError,
+)
 from .mysql_error_codes import MySQLErrorCodes
 from .postgresql_error_codes import PostgreSQLErrorCodes
 import boto3
@@ -40,8 +52,15 @@ logger = logging.getLogger(__name__)
 class AuroraDataAPIClient:
     _client_init_lock = threading.Lock()
 
-    def __init__(self, dbname=None, aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, charset=None,
-                 continue_after_timeout=None):
+    def __init__(
+        self,
+        dbname=None,
+        aurora_cluster_arn=None,
+        secret_arn=None,
+        rds_data_client=None,
+        charset=None,
+        continue_after_timeout=None,
+    ):
         self._client = rds_data_client
         if rds_data_client is None:
             with self._client_init_lock:
@@ -58,33 +77,37 @@ class AuroraDataAPIClient:
 
     def commit(self):
         if self._transaction_id:
-            res = self._client.commit_transaction(resourceArn=self._aurora_cluster_arn,
-                                                  secretArn=self._secret_arn,
-                                                  transactionId=self._transaction_id)
+            res = self._client.commit_transaction(
+                resourceArn=self._aurora_cluster_arn, secretArn=self._secret_arn, transactionId=self._transaction_id
+            )
             self._transaction_id = None
             if res["transactionStatus"] != "Transaction Committed":
                 raise DatabaseError("Error while committing transaction: {}".format(res))
 
     def rollback(self):
         if self._transaction_id:
-            self._client.rollback_transaction(resourceArn=self._aurora_cluster_arn,
-                                              secretArn=self._secret_arn,
-                                              transactionId=self._transaction_id)
+            self._client.rollback_transaction(
+                resourceArn=self._aurora_cluster_arn, secretArn=self._secret_arn, transactionId=self._transaction_id
+            )
             self._transaction_id = None
 
     def cursor(self):
         if self._transaction_id is None:
-            res = self._client.begin_transaction(database=self._dbname,
-                                                 resourceArn=self._aurora_cluster_arn,
-                                                 # schema="string", TODO
-                                                 secretArn=self._secret_arn)
+            res = self._client.begin_transaction(
+                database=self._dbname,
+                resourceArn=self._aurora_cluster_arn,
+                # schema="string", TODO
+                secretArn=self._secret_arn,
+            )
             self._transaction_id = res["transactionId"]
-        cursor = AuroraDataAPICursor(client=self._client,
-                                     dbname=self._dbname,
-                                     aurora_cluster_arn=self._aurora_cluster_arn,
-                                     secret_arn=self._secret_arn,
-                                     transaction_id=self._transaction_id,
-                                     continue_after_timeout=self._continue_after_timeout)
+        cursor = AuroraDataAPICursor(
+            client=self._client,
+            dbname=self._dbname,
+            aurora_cluster_arn=self._aurora_cluster_arn,
+            secret_arn=self._secret_arn,
+            transaction_id=self._transaction_id,
+            continue_after_timeout=self._continue_after_timeout,
+        )
         if self._charset:
             cursor.execute("SET character_set_client = '{}'".format(self._charset))
         return cursor
@@ -126,7 +149,7 @@ class AuroraDataAPICursor:
         "timestamp": datetime.datetime,
         "uuid": uuid.uuid4,
         "numeric": Decimal,
-        "decimal": Decimal
+        "decimal": Decimal,
     }
     _data_api_type_map = {
         bytes: "blobValue",
@@ -134,7 +157,7 @@ class AuroraDataAPICursor:
         float: "doubleValue",
         int: "longValue",
         str: "stringValue",
-        Decimal: "stringValue"
+        Decimal: "stringValue",
         # list: "arrayValue"
     }
     _data_api_type_hint_map = {
@@ -144,8 +167,15 @@ class AuroraDataAPICursor:
         Decimal: "DECIMAL",
     }
 
-    def __init__(self, client=None, dbname=None, aurora_cluster_arn=None, secret_arn=None, transaction_id=None,
-                 continue_after_timeout=None):
+    def __init__(
+        self,
+        client=None,
+        dbname=None,
+        aurora_cluster_arn=None,
+        secret_arn=None,
+        transaction_id=None,
+        continue_after_timeout=None,
+    ):
         self.arraysize = 1000
         self.description = None
         self._client = client
@@ -180,31 +210,31 @@ class AuroraDataAPICursor:
         # see https://www.postgresql.org/docs/9.5/datatype.html
         self.description = []
         for column in column_metadata:
-            col_desc = ColumnDescription(name=column["name"],
-                                         type_code=self._pg_type_map.get(column["typeName"].lower(), str))
+            col_desc = ColumnDescription(
+                name=column["name"], type_code=self._pg_type_map.get(column["typeName"].lower(), str)
+            )
             self.description.append(col_desc)
 
     def _start_paginated_query(self, execute_statement_args, records_per_page=None):
         # MySQL cursors are non-scrollable (https://dev.mysql.com/doc/refman/8.0/en/cursors.html)
         # - may not support page autosizing
         # - FETCH requires INTO - may need to write all results into a server side var and iterate on it
-        pg_cursor_name = "{}_{}_{}".format(__name__,
-                                           int(time.time()),
-                                           ''.join(random.choices(string.ascii_letters + string.digits, k=8)))
+        pg_cursor_name = "{}_{}_{}".format(
+            __name__, int(time.time()), "".join(random.choices(string.ascii_letters + string.digits, k=8))
+        )
         cursor_stmt = "DECLARE " + pg_cursor_name + " SCROLL CURSOR FOR "
         execute_statement_args["sql"] = cursor_stmt + execute_statement_args["sql"]
         self._client.execute_statement(**execute_statement_args)
         self._paging_state = {
             "execute_statement_args": dict(execute_statement_args),
             "records_per_page": records_per_page or self.arraysize,
-            "pg_cursor_name": pg_cursor_name
+            "pg_cursor_name": pg_cursor_name,
         }
 
     def _prepare_execute_args(self, operation):
-        execute_args = dict(database=self._dbname,
-                            resourceArn=self._aurora_cluster_arn,
-                            secretArn=self._secret_arn,
-                            sql=operation)
+        execute_args = dict(
+            database=self._dbname, resourceArn=self._aurora_cluster_arn, secretArn=self._secret_arn, sql=operation
+        )
         if self._transaction_id:
             execute_args["transactionId"] = self._transaction_id
         return execute_args
@@ -237,8 +267,7 @@ class AuroraDataAPICursor:
 
     def execute(self, operation, parameters=None):
         self._current_response, self._iterator, self._paging_state = None, None, None
-        execute_statement_args = dict(self._prepare_execute_args(operation),
-                                      includeResultMetadata=True)
+        execute_statement_args = dict(self._prepare_execute_args(operation), includeResultMetadata=True)
         if self._continue_after_timeout is not None:
             execute_statement_args["continueAfterTimeout"] = self._continue_after_timeout
         if parameters:
@@ -263,8 +292,8 @@ class AuroraDataAPICursor:
         if self._current_response:
             if "records" in self._current_response:
                 return len(self._current_response["records"])
-            elif 'numberOfRecordsUpdated' in self._current_response:
-                return self._current_response['numberOfRecordsUpdated']
+            elif "numberOfRecordsUpdated" in self._current_response:
+                return self._current_response["numberOfRecordsUpdated"]
         return -1
 
     @property
@@ -280,8 +309,9 @@ class AuroraDataAPICursor:
     def executemany(self, operation, seq_of_parameters):
         logger.debug("executemany %s", reprlib.repr(operation.strip()))
         for batch in self._page_input(seq_of_parameters):
-            batch_execute_statement_args = dict(self._prepare_execute_args(operation),
-                                                parameterSets=[self._format_parameter_set(p) for p in batch])
+            batch_execute_statement_args = dict(
+                self._prepare_execute_args(operation), parameterSets=[self._format_parameter_set(p) for p in batch]
+            )
             try:
                 self._client.batch_execute_statement(**batch_execute_statement_args)
             except self._client.exceptions.BadRequestException as e:
@@ -327,9 +357,7 @@ class AuroraDataAPICursor:
         if not self._paging_state:
             raise InterfaceError("Cursor scroll attempted but pagination is not active")
         scroll_stmt = "MOVE {mode} {value} FROM {pg_cursor_name}".format(
-            mode=mode.upper(),
-            value=value,
-            **self._paging_state
+            mode=mode.upper(), value=value, **self._paging_state
         )
         scroll_args = dict(self._paging_state["execute_statement_args"], sql=scroll_stmt)
         logger.debug("Scrolling cursor %s by %d rows", mode, value)
@@ -339,8 +367,9 @@ class AuroraDataAPICursor:
         if self._paging_state:
             next_page_args = self._paging_state["execute_statement_args"]
             while True:
-                logger.debug("Fetching page of %d records for auto-paginated query",
-                             self._paging_state["records_per_page"])
+                logger.debug(
+                    "Fetching page of %d records for auto-paginated query", self._paging_state["records_per_page"]
+                )
                 next_page_args["sql"] = "FETCH {records_per_page} FROM {pg_cursor_name}".format(**self._paging_state)
                 try:
                     page = self._client.execute_statement(**next_page_args)
@@ -403,8 +432,23 @@ class AuroraDataAPICursor:
         self._current_response = None
 
 
-def connect(aurora_cluster_arn=None, secret_arn=None, rds_data_client=None, database=None, host=None, port=None,
-            username=None, password=None, charset=None, continue_after_timeout=None):
-    return AuroraDataAPIClient(dbname=database, aurora_cluster_arn=aurora_cluster_arn,
-                               secret_arn=secret_arn, rds_data_client=rds_data_client, charset=charset,
-                               continue_after_timeout=continue_after_timeout)
+def connect(
+    aurora_cluster_arn=None,
+    secret_arn=None,
+    rds_data_client=None,
+    database=None,
+    host=None,
+    port=None,
+    username=None,
+    password=None,
+    charset=None,
+    continue_after_timeout=None,
+):
+    return AuroraDataAPIClient(
+        dbname=database,
+        aurora_cluster_arn=aurora_cluster_arn,
+        secret_arn=secret_arn,
+        rds_data_client=rds_data_client,
+        charset=charset,
+        continue_after_timeout=continue_after_timeout,
+    )

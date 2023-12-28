@@ -19,7 +19,8 @@ class TestAuroraDataAPI(unittest.TestCase):
         cls.db_name = os.environ.get("AURORA_DB_NAME", __name__)
         with aurora_data_api.connect(database=cls.db_name) as conn, conn.cursor() as cur:
             try:
-                cur.execute("""
+                cur.execute(
+                    """
                     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
                     DROP TABLE IF EXISTS aurora_data_api_test;
                     CREATE TABLE aurora_data_api_test (
@@ -29,32 +30,44 @@ class TestAuroraDataAPI(unittest.TestCase):
                         num NUMERIC (10, 5) DEFAULT 0.0,
                         ts TIMESTAMP WITHOUT TIME ZONE
                     )
-                """)
-                cur.executemany("""
+                """
+                )
+                cur.executemany(
+                    """
                     INSERT INTO aurora_data_api_test(name, doc, num, ts)
                     VALUES (:name, CAST(:doc AS JSONB), :num, CAST(:ts AS TIMESTAMP))
-                """, [
-                    {
-                        "name": "row{}".format(i),
-                        "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]}),
-                        "num": decimal.Decimal("%d.%d" % (i, i)),
-                        "ts": "2020-09-17 13:49:32.780180",
-                    } for i in range(2048)]
+                """,
+                    [
+                        {
+                            "name": "row{}".format(i),
+                            "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i**i if i < 512 else 0]}),
+                            "num": decimal.Decimal("%d.%d" % (i, i)),
+                            "ts": "2020-09-17 13:49:32.780180",
+                        }
+                        for i in range(2048)
+                    ],
                 )
             except aurora_data_api.MySQLError.ER_PARSE_ERROR:
                 cls.using_mysql = True
                 cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
-                cur.execute("CREATE TABLE aurora_data_api_test "
-                            "(id SERIAL, name TEXT, birthday DATE, num NUMERIC(10, 5), ts TIMESTAMP)")
+                cur.execute(
+                    "CREATE TABLE aurora_data_api_test "
+                    "(id SERIAL, name TEXT, birthday DATE, num NUMERIC(10, 5), ts TIMESTAMP)"
+                )
                 cur.executemany(
-                    ("INSERT INTO aurora_data_api_test(name, birthday, num, ts) VALUES "
-                     "(:name, :birthday, :num, CAST(:ts AS DATETIME))"),
-                    [{
-                        "name": "row{}".format(i),
-                        "birthday": "2000-01-01",
-                        "num": decimal.Decimal("%d.%d" % (i, i)),
-                        "ts": "2020-09-17 13:49:32.780180",
-                    } for i in range(2048)]
+                    (
+                        "INSERT INTO aurora_data_api_test(name, birthday, num, ts) VALUES "
+                        "(:name, :birthday, :num, CAST(:ts AS DATETIME))"
+                    ),
+                    [
+                        {
+                            "name": "row{}".format(i),
+                            "birthday": "2000-01-01",
+                            "num": decimal.Decimal("%d.%d" % (i, i)),
+                            "ts": "2020-09-17 13:49:32.780180",
+                        }
+                        for i in range(2048)
+                    ],
                 )
 
     @classmethod
@@ -64,8 +77,9 @@ class TestAuroraDataAPI(unittest.TestCase):
 
     def test_invalid_statements(self):
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
-            with self.assertRaises((aurora_data_api.exceptions.PostgreSQLError.ER_SYNTAX_ERR,
-                                    aurora_data_api.MySQLError.ER_PARSE_ERROR)):
+            with self.assertRaises(
+                (aurora_data_api.exceptions.PostgreSQLError.ER_SYNTAX_ERR, aurora_data_api.MySQLError.ER_PARSE_ERROR)
+            ):
                 cur.execute("selec * from table")
 
     def test_iterators(self):
@@ -81,13 +95,15 @@ class TestAuroraDataAPI(unittest.TestCase):
                 self.assertEqual(cur.fetchone()[0], 2048)
 
             with conn.cursor() as cursor:
-                expect_row0 = (1,
-                               'row0',
-                               datetime.date(2000, 1, 1) if self.using_mysql else '{"x": 0, "y": "0", "z": [0, 0, 1]}',
-                               decimal.Decimal(0.0),
-                               datetime.datetime(2020, 9, 17, 13, 49, 33)
-                               if self.using_mysql
-                               else datetime.datetime(2020, 9, 17, 13, 49, 32, 780180))
+                expect_row0 = (
+                    1,
+                    "row0",
+                    datetime.date(2000, 1, 1) if self.using_mysql else '{"x": 0, "y": "0", "z": [0, 0, 1]}',
+                    decimal.Decimal(0.0),
+                    datetime.datetime(2020, 9, 17, 13, 49, 33)
+                    if self.using_mysql
+                    else datetime.datetime(2020, 9, 17, 13, 49, 32, 780180),
+                )
                 i = 0
                 cursor.execute("select * from aurora_data_api_test")
                 for f in cursor:
@@ -100,7 +116,7 @@ class TestAuroraDataAPI(unittest.TestCase):
                 data = cursor.fetchall()
                 self.assertEqual(data[0], expect_row0)
                 self.assertEqual(data[-1][0], 2048)
-                self.assertEqual(data[-1][1], 'row2047')
+                self.assertEqual(data[-1][1], "row2047")
                 if not self.using_mysql:
                     self.assertEqual(json.loads(data[-1][2]), {"x": 2047, "y": str(2047), "z": [2047, 2047 * 2047, 0]})
                 self.assertEqual(data[-1][-2], decimal.Decimal("2047.2047"))
@@ -122,8 +138,10 @@ class TestAuroraDataAPI(unittest.TestCase):
                         break
                     self.assertIn(len(fm), [1001, 46])
 
-    @unittest.skip("This test now fails because the API was changed to terminate and delete the transaction when the "
-                   "data returned by the statement exceeds the limit, making automated recovery impossible.")
+    @unittest.skip(
+        "This test now fails because the API was changed to terminate and delete the transaction when the "
+        "data returned by the statement exceeds the limit, making automated recovery impossible."
+    )
     def test_pagination_backoff(self):
         if self.using_mysql:
             return
@@ -136,8 +154,9 @@ class TestAuroraDataAPI(unittest.TestCase):
             concat_args = ", ".join(["cast(doc as text)"] * 100)
             sql = sql_template.format(", ".join("concat({})".format(concat_args) for i in range(32)))
             cur.execute(sql)
-            with self.assertRaisesRegex(conn._client.exceptions.BadRequestException,
-                                        "Database response exceeded size limit"):
+            with self.assertRaisesRegex(
+                conn._client.exceptions.BadRequestException, "Database response exceeded size limit"
+            ):
                 cur.fetchall()
 
     def test_postgres_exceptions(self):
@@ -164,10 +183,16 @@ class TestAuroraDataAPI(unittest.TestCase):
             return
 
         with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
-            cur.executemany("INSERT INTO aurora_data_api_test(name, doc) VALUES (:name, CAST(:doc AS JSONB))", [{
-                "name": "rowcount{}".format(i),
-                "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i ** i if i < 512 else 0]})
-            } for i in range(8)])
+            cur.executemany(
+                "INSERT INTO aurora_data_api_test(name, doc) VALUES (:name, CAST(:doc AS JSONB))",
+                [
+                    {
+                        "name": "rowcount{}".format(i),
+                        "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i**i if i < 512 else 0]}),
+                    }
+                    for i in range(8)
+                ],
+            )
 
             cur.execute("UPDATE aurora_data_api_test SET doc = '{}' WHERE name like 'rowcount%'")
             self.assertEqual(cur.rowcount, 8)
@@ -185,8 +210,12 @@ class TestAuroraDataAPI(unittest.TestCase):
         try:
             with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
                 with self.assertRaisesRegex(conn._client.exceptions.ClientError, "StatementTimeoutException"):
-                    cur.execute(("INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout'"
-                                 "FROM (SELECT pg_sleep(50)) q"))
+                    cur.execute(
+                        (
+                            "INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout'"
+                            "FROM (SELECT pg_sleep(50)) q"
+                        )
+                    )
                 with self.assertRaisesRegex(aurora_data_api.DatabaseError, "current transaction is aborted"):
                     cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
 
@@ -194,11 +223,16 @@ class TestAuroraDataAPI(unittest.TestCase):
                 cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
                 self.assertEqual(cur.fetchone(), (0,))
 
-            with aurora_data_api.connect(database=self.db_name,
-                                         continue_after_timeout=True) as conn, conn.cursor() as cur:
+            with aurora_data_api.connect(
+                database=self.db_name, continue_after_timeout=True
+            ) as conn, conn.cursor() as cur:
                 with self.assertRaisesRegex(conn._client.exceptions.ClientError, "StatementTimeoutException"):
-                    cur.execute(("INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout' "
-                                 "FROM (SELECT pg_sleep(50)) q"))
+                    cur.execute(
+                        (
+                            "INSERT INTO aurora_data_api_test(name) SELECT 'continue_after_timeout' "
+                            "FROM (SELECT pg_sleep(50)) q"
+                        )
+                    )
                 cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
                 self.assertEqual(cur.fetchone(), (1,))
         finally:

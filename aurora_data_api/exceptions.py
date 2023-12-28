@@ -44,7 +44,7 @@ class NotSupportedError(DatabaseError):
 
 class _DatabaseErrorFactory:
     def __getattr__(self, a):
-        err_cls = type(getattr(self.err_index, a).name, (DatabaseError, ), {})
+        err_cls = type(getattr(self.err_index, a).name, (DatabaseError,), {})
         setattr(self, a, err_cls)
         return err_cls
 
