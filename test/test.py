@@ -25,10 +25,10 @@ class TestAuroraDataAPI(unittest.TestCase):
         cls.db_name = os.environ.get("AURORA_DB_NAME", __name__)
         with aurora_data_api.connect(database=cls.db_name) as conn, conn.cursor() as cur:
             try:
+                cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+                cur.execute('DROP TABLE IF EXISTS aurora_data_api_test')
                 cur.execute(
                     """
-                    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-                    DROP TABLE IF EXISTS aurora_data_api_test;
                     CREATE TABLE aurora_data_api_test (
                         id SERIAL,
                         name TEXT,
@@ -36,7 +36,7 @@ class TestAuroraDataAPI(unittest.TestCase):
                         num NUMERIC (10, 5) DEFAULT 0.0,
                         ts TIMESTAMP WITHOUT TIME ZONE
                     )
-                """
+                    """
                 )
                 cur.executemany(
                     """
