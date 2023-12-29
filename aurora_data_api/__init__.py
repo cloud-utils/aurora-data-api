@@ -254,7 +254,7 @@ class AuroraDataAPICursor:
                 error = error_class(error_msg)
                 error.response = getattr(original_error, "response", {})
                 return error
-            res = re.search(r"ERROR: .*\n  Position: (\d+); SQLState: (\w+)$", error_msg)
+            res = re.search(r"ERROR: .*(?:\n |;) Position: (\d+); SQLState: (\w+)$", error_msg)
             if res:  # PostgreSQL error
                 error_code = res.group(2)
                 error_class = PostgreSQLError.from_code(error_code)
@@ -278,7 +278,7 @@ class AuroraDataAPICursor:
             if "columnMetadata" in res:
                 self._set_description(res["columnMetadata"])
             self._current_response = self._render_response(res)
-        except self._client.exceptions.BadRequestException as e:
+        except (self._client.exceptions.BadRequestException, self._client.exceptions.DatabaseErrorException) as e:
             if "Please paginate your query" in str(e):
                 self._start_paginated_query(execute_statement_args)
             elif "Database returned more than the allowed response size limit" in str(e):
