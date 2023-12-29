@@ -46,7 +46,8 @@ class TestAuroraDataAPI(unittest.TestCase):
                     [
                         {
                             "name": "row{}".format(i),
-                            "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i**i if i < 512 else 0]}),
+                            # Note: data api v1 supports up to 512**512 but v2 only supports up to 128**128
+                            "doc": json.dumps({"x": i, "y": str(i), "z": [i, i * i, i**i if i < 128 else 0]}),
                             "num": decimal.Decimal("%d.%d" % (i, i)),
                             "ts": "2020-09-17 13:49:32.780180",
                         }
@@ -94,9 +95,9 @@ class TestAuroraDataAPI(unittest.TestCase):
                 cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**6))
                 self.assertEqual(cur.fetchone()[0], 0)
                 cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**7))
-                self.assertEqual(cur.fetchone()[0], 1594)
+                self.assertEqual(cur.fetchone()[0], 1977)
                 cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**8))
-                self.assertEqual(cur.fetchone()[0], 1697)
+                self.assertEqual(cur.fetchone()[0], 2048)
                 cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**10))
                 self.assertEqual(cur.fetchone()[0], 2048)
 
@@ -104,7 +105,8 @@ class TestAuroraDataAPI(unittest.TestCase):
                 expect_row0 = (
                     1,
                     "row0",
-                    datetime.date(2000, 1, 1) if self.using_mysql else '{"x": 0, "y": "0", "z": [0, 0, 1]}',
+                    # Note: data api v1 used JSON serialization with extra whitespace; v2 uses compact serialization
+                    datetime.date(2000, 1, 1) if self.using_mysql else '{"x":0,"y":"0","z":[0,0,1]}',
                     decimal.Decimal(0.0),
                     datetime.datetime(2020, 9, 17, 13, 49, 33)
                     if self.using_mysql
