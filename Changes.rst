@@ -1,3 +1,11 @@
+Changes for v0.5.0 (2023-12-29)
+===============================
+
+-  Changes required for compatibility with RDS Data API for Aurora
+   Serverless v2
+
+-  Test and release infrastructure improvements
+
 Changes for v0.4.0 (2022-02-27)
 ===============================
 
