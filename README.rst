@@ -1,5 +1,5 @@
-aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
-===================================================================================
+aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless v1 and v2 Data API
+=============================================================================================
 
 Installation
 ------------
@@ -9,10 +9,12 @@ Installation
 
 Prerequisites
 -------------
-* Set up an
-  `AWS Aurora Serverless cluster <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless.html>`_
-  and enable Data API access for it. If you have previously set up an Aurora Serverless cluster, you can enable Data API
-  with the following `AWS CLI <https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html>`_ command::
+* Set up an AWS
+  `Aurora Serverless <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless.html>`_ or
+  `Aurora Serverless v2 <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2.html>`_
+  cluster and enable Data API access for it. If you have previously set up an Aurora Serverless cluster, you can enable
+  Data API with the following `AWS CLI <https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html>`_
+  command::
 
       aws rds modify-db-cluster --db-cluster-identifier DB_CLUSTER_NAME --enable-http-endpoint --apply-immediately
 
