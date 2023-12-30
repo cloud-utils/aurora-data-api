@@ -10,11 +10,11 @@ Installation
 Prerequisites
 -------------
 * Set up an AWS
-  `Aurora Serverless <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless.html>`_ or
-  `Aurora Serverless v2 <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2.html>`_
-  cluster and enable Data API access for it. If you have previously set up an Aurora Serverless cluster, you can enable
-  Data API with the following `AWS CLI <https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html>`_
-  command::
+  `Aurora Serverless v2 <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2.html>`_ cluster
+  and enable Data API access for it
+  (`Aurora Serverless v1 <https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless.html>`_ is also
+  supported). If you have previously set up an Aurora Serverless cluster, you can enable Data API with the following
+  `AWS CLI <https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html>`_ command::
 
       aws rds modify-db-cluster --db-cluster-identifier DB_CLUSTER_NAME --enable-http-endpoint --apply-immediately
 

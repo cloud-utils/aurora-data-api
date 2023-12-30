@@ -26,7 +26,7 @@ class TestAuroraDataAPI(unittest.TestCase):
         with aurora_data_api.connect(database=cls.db_name) as conn, conn.cursor() as cur:
             try:
                 cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-                cur.execute('DROP TABLE IF EXISTS aurora_data_api_test')
+                cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
                 cur.execute(
                     """
                     CREATE TABLE aurora_data_api_test (
