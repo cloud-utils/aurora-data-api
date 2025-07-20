@@ -49,7 +49,7 @@ ColumnDescription.__new__.__defaults__ = (None,) * len(ColumnDescription._fields
 logger = logging.getLogger(__name__)
 
 
-class AuroraDataAPIClient:
+class SyncAuroraDataAPIClient:
     _client_init_lock = threading.Lock()
 
     def __init__(
@@ -101,7 +101,7 @@ class AuroraDataAPIClient:
                 secretArn=self._secret_arn,
             )
             self._transaction_id = res["transactionId"]
-        cursor = AuroraDataAPICursor(
+        cursor = SyncAuroraDataAPICursor(
             client=self._client,
             dbname=self._dbname,
             aurora_cluster_arn=self._aurora_cluster_arn,
@@ -123,7 +123,7 @@ class AuroraDataAPIClient:
             self.commit()
 
 
-class AuroraDataAPICursor:
+class SyncAuroraDataAPICursor:
     _pg_type_map = {
         "int": int,
         "int2": int,
@@ -445,7 +445,7 @@ def connect(
     charset=None,
     continue_after_timeout=None,
 ):
-    return AuroraDataAPIClient(
+    return SyncAuroraDataAPIClient(
         dbname=database,
         aurora_cluster_arn=aurora_cluster_arn,
         secret_arn=secret_arn,
