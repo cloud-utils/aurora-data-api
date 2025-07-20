@@ -9,8 +9,8 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import aurora_data_api  # noqa
-from aurora_data_api.mysql_error_codes import MySQLErrorCodes  # noqa
-from aurora_data_api.postgresql_error_codes import PostgreSQLErrorCodes  # noqa
+from aurora_data_api.error_codes_mysql import MySQLErrorCodes  # noqa
+from aurora_data_api.error_codes_postgresql import PostgreSQLErrorCodes  # noqa
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("aurora_data_api").setLevel(logging.DEBUG)

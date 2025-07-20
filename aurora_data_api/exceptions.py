@@ -1,5 +1,5 @@
-from .mysql_error_codes import MySQLErrorCodes
-from .postgresql_error_codes import PostgreSQLErrorCodes
+from .error_codes_mysql import MySQLErrorCodes
+from .error_codes_postgresql import PostgreSQLErrorCodes
 
 
 class Warning(Exception):

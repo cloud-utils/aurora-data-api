@@ -19,8 +19,8 @@ from .exceptions import (
     MySQLError,
     PostgreSQLError,
 )
-from .mysql_error_codes import MySQLErrorCodes
-from .postgresql_error_codes import PostgreSQLErrorCodes
+from .error_codes_mysql import MySQLErrorCodes
+from .error_codes_postgresql import PostgreSQLErrorCodes
 import boto3
 
 apilevel = "2.0"
