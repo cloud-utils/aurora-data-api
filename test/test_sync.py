@@ -23,7 +23,9 @@ class TestAuroraDataAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.db_name = os.environ.get("AURORA_DB_NAME", __name__)
-        with sync.connect(database=cls.db_name) as conn, conn.cursor() as cur:
+        cls.cluster_arn = os.environ.get("AURORA_CLUSTER_ARN")
+        cls.secret_arn = os.environ.get("SECRET_ARN")
+        with sync.connect(database=cls.db_name, aurora_cluster_arn=cls.cluster_arn, secret_arn=cls.secret_arn) as conn, conn.cursor() as cur:
             try:
                 cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
                 cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
