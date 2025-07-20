@@ -21,7 +21,7 @@ from .exceptions import (
 )
 from .error_codes_mysql import MySQLErrorCodes
 from .error_codes_postgresql import PostgreSQLErrorCodes
-import boto3
+import botocore.session
 
 apilevel = "2.0"
 
@@ -64,7 +64,8 @@ class AuroraDataAPIClient:
         self._client = rds_data_client
         if rds_data_client is None:
             with self._client_init_lock:
-                self._client = boto3.client("rds-data")
+                session = botocore.session.get_session()
+                self._client = session.create_client("rds-data")
         self._dbname = dbname
         self._aurora_cluster_arn = aurora_cluster_arn or os.environ.get("AURORA_CLUSTER_ARN")
         self._secret_arn = secret_arn or os.environ.get("AURORA_SECRET_ARN")
