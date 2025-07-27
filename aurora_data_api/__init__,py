@@ -1,4 +1,0 @@
-# For backward compatibility
-from .sync import connect
-from .sync import SyncAuroraDataAPIClient as AuroraDataAPIClient
-from .sync import SyncAuroraDataAPICursor as AuroraDataAPICursor
