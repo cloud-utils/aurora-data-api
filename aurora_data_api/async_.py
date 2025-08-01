@@ -1,29 +1,14 @@
 """
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API (Async version)
 """
-import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib, json, re, asyncio
-from decimal import Decimal
-from collections import namedtuple
-from collections.abc import Mapping
+import time
+import random
+import string
+import reprlib
 from .base import BaseAuroraDataAPIClient, BaseAuroraDataAPICursor, logger
-from .base import (
-    apilevel, threadsafety, paramstyle, Date, Time, Timestamp, DateFromTicks,
-    TimestampFromTicks, Binary, STRING, BINARY, NUMBER, DATETIME, ROWID, DECIMAL,
-    ColumnDescription
-)
 from .exceptions import (
-    Warning,
-    Error,
     InterfaceError,
     DatabaseError,
-    DataError,
-    OperationalError,
-    IntegrityError,
-    InternalError,
-    ProgrammingError,
-    NotSupportedError,
-    MySQLError,
-    PostgreSQLError,
 )
 import aiobotocore.session
 
