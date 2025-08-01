@@ -8,9 +8,9 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import aurora_data_api  # noqa
-from aurora_data_api.mysql_error_codes import MySQLErrorCodes  # noqa
-from aurora_data_api.postgresql_error_codes import PostgreSQLErrorCodes  # noqa
+import aurora_data_api.sync as sync  # noqa
+from aurora_data_api.error_codes_mysql import MySQLErrorCodes  # noqa
+from aurora_data_api.error_codes_postgresql import PostgreSQLErrorCodes  # noqa
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("aurora_data_api").setLevel(logging.DEBUG)
@@ -23,7 +23,9 @@ class TestAuroraDataAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.db_name = os.environ.get("AURORA_DB_NAME", __name__)
-        with aurora_data_api.connect(database=cls.db_name) as conn, conn.cursor() as cur:
+        cls.cluster_arn = os.environ.get("AURORA_CLUSTER_ARN")
+        cls.secret_arn = os.environ.get("SECRET_ARN")
+        with sync.connect(database=cls.db_name, aurora_cluster_arn=cls.cluster_arn, secret_arn=cls.secret_arn) as conn, conn.cursor() as cur:
             try:
                 cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
                 cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
@@ -54,7 +56,7 @@ class TestAuroraDataAPI(unittest.TestCase):
                         for i in range(2048)
                     ],
                 )
-            except aurora_data_api.MySQLError.ER_PARSE_ERROR:
+            except sync.MySQLError.ER_PARSE_ERROR:
                 cls.using_mysql = True
                 cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
                 cur.execute(
@@ -79,18 +81,18 @@ class TestAuroraDataAPI(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        with aurora_data_api.connect(database=cls.db_name) as conn, conn.cursor() as cur:
+        with sync.connect(database=cls.db_name) as conn, conn.cursor() as cur:
             cur.execute("DROP TABLE IF EXISTS aurora_data_api_test")
 
     def test_invalid_statements(self):
-        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+        with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
             with self.assertRaises(
-                (aurora_data_api.exceptions.PostgreSQLError.ER_SYNTAX_ERR, aurora_data_api.MySQLError.ER_PARSE_ERROR)
+                (sync.exceptions.PostgreSQLError.ER_SYNTAX_ERR, sync.MySQLError.ER_PARSE_ERROR)
             ):
                 cur.execute("selec * from table")
 
     def test_iterators(self):
-        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+        with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
             if not self.using_mysql:
                 cur.execute("select count(*) from aurora_data_api_test where pg_column_size(doc) < :s", dict(s=2**6))
                 self.assertEqual(cur.fetchone()[0], 0)
@@ -153,7 +155,7 @@ class TestAuroraDataAPI(unittest.TestCase):
     def test_pagination_backoff(self):
         if self.using_mysql:
             return
-        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+        with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
             sql_template = "select concat({}) from aurora_data_api_test"
             sql = sql_template.format(", ".join(["cast(doc as text)"] * 64))
             cur.execute(sql)
@@ -170,27 +172,27 @@ class TestAuroraDataAPI(unittest.TestCase):
     def test_postgres_exceptions(self):
         if self.using_mysql:
             return
-        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+        with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
             table = "aurora_data_api_nonexistent_test_table"
-            with self.assertRaises(aurora_data_api.exceptions.PostgreSQLError.ER_UNDEF_TABLE) as e:
+            with self.assertRaises(sync.exceptions.PostgreSQLError.ER_UNDEF_TABLE) as e:
                 sql = f"select * from {table}"
                 cur.execute(sql)
             self.assertTrue(f'relation "{table}" does not exist' in str(e.exception))
             self.assertTrue(isinstance(e.exception.response, dict))
 
     def test_rowcount(self):
-        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+        with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
             cur.execute("select * from aurora_data_api_test limit 8")
             self.assertEqual(cur.rowcount, 8)
 
-        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+        with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
             cur.execute("select * from aurora_data_api_test limit 9000")
             self.assertEqual(cur.rowcount, 2048)
 
         if self.using_mysql:
             return
 
-        with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+        with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
             cur.executemany(
                 "INSERT INTO aurora_data_api_test(name, doc) VALUES (:name, CAST(:doc AS JSONB))",
                 [
@@ -216,7 +218,7 @@ class TestAuroraDataAPI(unittest.TestCase):
             self.skipTest("Not implemented for MySQL")
 
         try:
-            with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+            with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
                 with self.assertRaisesRegex(conn._client.exceptions.ClientError, "StatementTimeoutException"):
                     cur.execute(
                         (
@@ -224,14 +226,14 @@ class TestAuroraDataAPI(unittest.TestCase):
                             "FROM (SELECT pg_sleep(50)) q"
                         )
                     )
-                with self.assertRaisesRegex(aurora_data_api.DatabaseError, "current transaction is aborted"):
+                with self.assertRaisesRegex(sync.DatabaseError, "current transaction is aborted"):
                     cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
 
-            with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+            with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
                 self.assertEqual(cur.fetchone(), (0,))
 
-            with aurora_data_api.connect(
+            with sync.connect(
                 database=self.db_name, continue_after_timeout=True
             ) as conn, conn.cursor() as cur:
                 with self.assertRaisesRegex(conn._client.exceptions.ClientError, "StatementTimeoutException"):
@@ -244,7 +246,7 @@ class TestAuroraDataAPI(unittest.TestCase):
                 cur.execute("SELECT COUNT(*) FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
                 self.assertEqual(cur.fetchone(), (1,))
         finally:
-            with aurora_data_api.connect(database=self.db_name) as conn, conn.cursor() as cur:
+            with sync.connect(database=self.db_name) as conn, conn.cursor() as cur:
                 cur.execute("DELETE FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
 
 

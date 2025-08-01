@@ -11,8 +11,10 @@ setup(
     author_email="kislyuk@gmail.com",
     description="A Python DB-API 2.0 client for the AWS Aurora Serverless Data API",
     long_description=open("README.rst").read(),
-    install_requires=["boto3 >= 1.34.10, < 2"],
-    extras_require={},
+    install_requires=["botocore >= 1.38.40, < 2"],
+    extras_require={
+        "async": "aiobotocore >= 2.23.1, < 3"
+    },
     packages=find_packages(exclude=["test"]),
     platforms=["MacOS X", "Posix"],
     test_suite="test",
