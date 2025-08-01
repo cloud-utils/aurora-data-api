@@ -1,6 +1,7 @@
 """
 Base classes for Aurora Data API clients and cursors
 """
+
 import os
 import datetime
 import ipaddress
@@ -52,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 class BaseAuroraDataAPIClient:
     """Base class for Aurora Data API clients"""
-    
+
     def __init__(
         self,
         dbname=None,
@@ -76,7 +77,7 @@ class BaseAuroraDataAPIClient:
 
 class BaseAuroraDataAPICursor:
     """Base class for Aurora Data API cursors"""
-    
+
     _pg_type_map = {
         "int": int,
         "int2": int,
