@@ -317,6 +317,25 @@ class TestAuroraDataAPI(BaseAuroraDataAPITest, AsyncTestCase):
                 cur = await conn.cursor()
                 await cur.execute("DELETE FROM aurora_data_api_test WHERE name = 'continue_after_timeout'")
 
+
+class TestAuroraDataAPIConformance(PEP249ConformanceTestMixin, CoreAuroraDataAPITest):
+    """Conformance test class for asynchronous tests. Sets up connection to run tests."""
+
+    driver = async_
+    connection = None
+
+    def setUp(self):
+        """Setup mock objects for connection and cursor as member variables."""
+        self.connection = self.driver.connect(
+            database=self.db_name, aurora_cluster_arn=self.cluster_arn, secret_arn=self.secret_arn
+        )
+
+    async def test_cursor_interface(self):
+        """[Cursor] Runs formal interface checks on the cursor."""
+        cur = await self.connection.cursor()
+        self._assert_cursor_interface(cur)
+
+
 # Remove these classes to avoid instantiation errors
 del AsyncTestCase
 del CoreAuroraDataAPITest
