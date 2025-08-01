@@ -5,6 +5,7 @@ import os
 import datetime
 import ipaddress
 import uuid
+import time
 import logging
 import itertools
 import re
@@ -28,7 +29,12 @@ Date = datetime.date
 Time = datetime.time
 Timestamp = datetime.datetime
 DateFromTicks = datetime.date.fromtimestamp
-# TimeFromTicks = datetime.time.fromtimestamp TODO
+
+
+def TimeFromTicks(ticks):
+    return Time(*time.localtime(ticks)[3:6])
+
+
 TimestampFromTicks = datetime.datetime.fromtimestamp
 Binary = bytes
 STRING = str

@@ -12,7 +12,7 @@ from .base import (
     Time,
     Timestamp,
     DateFromTicks,
-    # TimeFromTicks,
+    TimeFromTicks,
     TimestampFromTicks,
     Binary,
     STRING,
