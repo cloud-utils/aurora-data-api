@@ -274,7 +274,7 @@ class AsyncAuroraDataAPICursor(BaseAuroraDataAPICursor):
         self._current_response = None
 
 
-def connect(
+async def connect(
     aurora_cluster_arn=None,
     secret_arn=None,
     rds_data_client=None,
