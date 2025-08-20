@@ -1,29 +1,42 @@
 """
 aurora-data-api - A Python DB-API 2.0 client for the AWS Aurora Serverless Data API
 """
-import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib, json, re, threading
-from decimal import Decimal
-from collections import namedtuple
-from collections.abc import Mapping
+
+import time
+import random
+import string
+import reprlib
+import threading
 from .base import BaseAuroraDataAPIClient, BaseAuroraDataAPICursor, logger
 from .base import (
-    apilevel, threadsafety, paramstyle, Date, Time, Timestamp, DateFromTicks,
-    TimestampFromTicks, Binary, STRING, BINARY, NUMBER, DATETIME, ROWID, DECIMAL,
-    ColumnDescription
+    apilevel,  # noqa: F401
+    threadsafety,  # noqa: F401
+    paramstyle,  # noqa: F401
+    Date,  # noqa: F401
+    Time,  # noqa: F401
+    Timestamp,  # noqa: F401
+    DateFromTicks,  # noqa: F401
+    TimeFromTicks,  # noqa: F401
+    TimestampFromTicks,  # noqa: F401
+    Binary,  # noqa: F401
+    STRING,  # noqa: F401
+    BINARY,  # noqa: F401
+    NUMBER,  # noqa: F401
+    DATETIME,  # noqa: F401
+    ROWID,  # noqa: F401
+    DECIMAL,  # noqa: F401
 )
 from .exceptions import (
-    Warning,
-    Error,
-    InterfaceError,
-    DatabaseError,
-    DataError,
-    OperationalError,
-    IntegrityError,
-    InternalError,
-    ProgrammingError,
-    NotSupportedError,
-    MySQLError,
-    PostgreSQLError,
+    Warning,  # noqa: F401
+    Error,  # noqa: F401
+    InterfaceError,  # noqa: F401
+    DatabaseError,  # noqa: F401
+    DataError,  # noqa: F401
+    OperationalError,  # noqa: F401
+    IntegrityError,  # noqa: F401
+    InternalError,  # noqa: F401
+    ProgrammingError,  # noqa: F401
+    NotSupportedError,  # noqa: F401
 )
 import botocore.session
 

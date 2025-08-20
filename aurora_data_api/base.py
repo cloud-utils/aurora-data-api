@@ -1,26 +1,24 @@
 """
 Base classes for Aurora Data API clients and cursors
 """
-import os, datetime, ipaddress, uuid, time, random, string, logging, itertools, reprlib, json, re
+
+import os
+import datetime
+import ipaddress
+import uuid
+import time
+import logging
+import itertools
+import re
 from decimal import Decimal
 from collections import namedtuple
 from collections.abc import Mapping
 from .exceptions import (
-    Warning,
-    Error,
-    InterfaceError,
     DatabaseError,
-    DataError,
-    OperationalError,
-    IntegrityError,
-    InternalError,
-    ProgrammingError,
     NotSupportedError,
     MySQLError,
     PostgreSQLError,
 )
-from .error_codes_mysql import MySQLErrorCodes
-from .error_codes_postgresql import PostgreSQLErrorCodes
 
 apilevel = "2.0"
 
@@ -32,7 +30,12 @@ Date = datetime.date
 Time = datetime.time
 Timestamp = datetime.datetime
 DateFromTicks = datetime.date.fromtimestamp
-# TimeFromTicks = datetime.time.fromtimestamp TODO
+
+
+def TimeFromTicks(ticks):
+    return Time(*time.localtime(ticks)[3:6])
+
+
 TimestampFromTicks = datetime.datetime.fromtimestamp
 Binary = bytes
 STRING = str
@@ -50,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 class BaseAuroraDataAPIClient:
     """Base class for Aurora Data API clients"""
-    
+
     def __init__(
         self,
         dbname=None,
@@ -74,7 +77,7 @@ class BaseAuroraDataAPIClient:
 
 class BaseAuroraDataAPICursor:
     """Base class for Aurora Data API cursors"""
-    
+
     _pg_type_map = {
         "int": int,
         "int2": int,

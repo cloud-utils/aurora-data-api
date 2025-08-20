@@ -12,7 +12,7 @@ from .base import (
     Time,
     Timestamp,
     DateFromTicks,
-    # TimeFromTicks,
+    TimeFromTicks,
     TimestampFromTicks,
     Binary,
     STRING,
@@ -21,4 +21,18 @@ from .base import (
     DATETIME,
     ROWID,
     DECIMAL,
+)
+from .exceptions import (
+    Warning,
+    Error,
+    InterfaceError,
+    DatabaseError,
+    DataError,
+    OperationalError,
+    IntegrityError,
+    InternalError,
+    ProgrammingError,
+    NotSupportedError,
+    MySQLError,
+    PostgreSQLError,
 )
